@@ -1,0 +1,189 @@
+# Emerson/Bristol 3808 MVT - READ-ONLY CDAB TRIAL
+# Manufacturer source: Bristol CI-3808, February 2007, Appendix E, pp. 1-4.
+# https://manuzoid.com/manuals/0ye4G-Remote%20Automation%20Solutions%20Bristol%203808%20Multivariable%20Owner%27s%20manual
+# Cross-reference: Emerson 225AD-12b (April 2011), D301329X012, pp. 2-3.
+# https://www.documentation.emersonprocess.com/intradoc-cgi/groups/public/documents/qbr/d301329x012.pdf
+# TRIAL ASSUMPTIONS - NOT MANUFACTURER-VERIFIED:
+# 1. CDAB float encoding, represented by LOW_HIGH (swap 16-bit words only).
+# 2. Printed 16-bit register addresses are used unchanged on wire (zero_based).
+# Check FC3 raw reads, address alignment, units and word order before enabling tags.
+# Engineering units for DP/SP/T follow transmitter config registers 60/61/62;
+# consequently the float tags do not declare fixed engineering units.
+# No writes or calibration commands are defined.
+
+schema_version = 2
+
+[device]
+profile_id = "emerson_3808_mvt_cdab_trial"
+profile_version = 1
+vendor = "Emerson"
+model = "Bristol 3808 MVT"
+description = "Read-only 3808 Modbus RTU CDAB trial; address and word-order validation pending"
+
+[modbus]
+transport = "rtu"
+unit_id = 1
+address_format = "zero_based"
+
+[[tags]]
+id = "differential_gauge_pressure"
+name = "Differential / Gauge Pressure"
+read_function = 3
+register = 401
+data_type = "float32"
+word_order = "LOW_HIGH"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Measurements"
+
+[[tags]]
+id = "static_pressure"
+name = "Static Pressure"
+read_function = 3
+register = 403
+data_type = "float32"
+word_order = "LOW_HIGH"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Measurements"
+
+[[tags]]
+id = "process_temperature"
+name = "Process Temperature"
+read_function = 3
+register = 405
+data_type = "float32"
+word_order = "LOW_HIGH"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Measurements"
+
+[[tags]]
+id = "dp_upper_range_limit"
+name = "DP / GP Upper Range Limit"
+read_function = 3
+register = 413
+data_type = "float32"
+word_order = "LOW_HIGH"
+access = "read"
+default_enabled = false
+poll_group = "range"
+pool_group = "Ranges"
+
+[[tags]]
+id = "dp_lower_range_limit"
+name = "DP / GP Lower Range Limit"
+read_function = 3
+register = 415
+data_type = "float32"
+word_order = "LOW_HIGH"
+access = "read"
+default_enabled = false
+poll_group = "range"
+pool_group = "Ranges"
+
+[[tags]]
+id = "sp_upper_range_limit"
+name = "Static Pressure Upper Range Limit"
+read_function = 3
+register = 421
+data_type = "float32"
+word_order = "LOW_HIGH"
+access = "read"
+default_enabled = false
+poll_group = "range"
+pool_group = "Ranges"
+
+[[tags]]
+id = "sp_lower_range_limit"
+name = "Static Pressure Lower Range Limit"
+read_function = 3
+register = 423
+data_type = "float32"
+word_order = "LOW_HIGH"
+access = "read"
+default_enabled = false
+poll_group = "range"
+pool_group = "Ranges"
+
+[[tags]]
+id = "sensor_temperature"
+name = "Sensor Temperature"
+read_function = 3
+register = 457
+data_type = "float32"
+word_order = "LOW_HIGH"
+units = "degC"
+access = "read"
+default_enabled = false
+poll_group = "diagnostics"
+pool_group = "Diagnostics"
+
+[[tags]]
+id = "sensor_type_code"
+name = "Sensor Type Code"
+read_function = 3
+register = 11
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "dp_range_code"
+name = "DP / GP Range Code"
+read_function = 3
+register = 17
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "sp_range_code"
+name = "Static Pressure Range Code"
+read_function = 3
+register = 18
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "dp_units_code"
+name = "DP / GP Units Code"
+read_function = 3
+register = 60
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "sp_units_code"
+name = "Static Pressure Units Code"
+read_function = 3
+register = 61
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "temperature_units_code"
+name = "Process Temperature Units Code"
+read_function = 3
+register = 62
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"

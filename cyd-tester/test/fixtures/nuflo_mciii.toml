@@ -1,0 +1,161 @@
+schema_version = 2
+
+[device]
+profile_id = "nuflo_mciii"
+profile_version = 1
+vendor = "Sensia LLC"
+model = "MC-III"
+description = "NuFlo MC-III flow analyzer"
+
+[modbus]
+transport = "rtu"
+unit_id = 1
+baud = 9600
+address_format = "zero_based"
+
+# Printed 8000-series PDU addresses retained unchanged.
+# FP uses two 16-bit registers, most significant word first.
+# Unit settings must be checked before labeling rate/total on RIOT.
+# Default address/baud are not a substitute for actual device settings.
+
+[[tags]]
+id = "product_code"
+name = "Product Code"
+description = "Factory identifier"
+read_function = 3
+register = 1000
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "slow"
+pool_group = "Diagnostics"
+
+[[tags]]
+id = "register_table_version"
+name = "Register Table Version"
+description = "Register map version"
+read_function = 3
+register = 1001
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "slow"
+pool_group = "Diagnostics"
+
+[[tags]]
+id = "flow_rate"
+name = "Flow Rate"
+description = "Configured rate units"
+read_function = 3
+register = 8012
+data_type = "float32"
+word_order = "HIGH_LOW"
+access = "read"
+default_enabled = true
+poll_group = "normal"
+pool_group = "Process"
+
+[[tags]]
+id = "grand_total"
+name = "Grand Total"
+description = "Configured volume units"
+read_function = 3
+register = 8010
+data_type = "float32"
+word_order = "HIGH_LOW"
+access = "read"
+default_enabled = true
+poll_group = "normal"
+pool_group = "Totals"
+
+[[tags]]
+id = "internal_temperature"
+name = "Internal Temperature"
+description = "Internal temperature"
+read_function = 3
+register = 8040
+data_type = "float32"
+word_order = "HIGH_LOW"
+access = "read"
+units = "°C"
+default_enabled = false
+poll_group = "slow"
+pool_group = "Diagnostics"
+
+[[tags]]
+id = "supply_voltage"
+name = "Supply Voltage"
+description = "External supply"
+read_function = 3
+register = 8042
+data_type = "float32"
+word_order = "HIGH_LOW"
+access = "read"
+units = "VDC"
+default_enabled = false
+poll_group = "slow"
+pool_group = "Diagnostics"
+
+[[tags]]
+id = "battery_voltage"
+name = "Battery Voltage"
+description = "Battery voltage"
+read_function = 3
+register = 8044
+data_type = "float32"
+word_order = "HIGH_LOW"
+access = "read"
+units = "VDC"
+default_enabled = true
+poll_group = "slow"
+pool_group = "Diagnostics"
+
+[[tags]]
+id = "volume_units_code"
+name = "Volume Units Code"
+description = "Raw volume unit code"
+read_function = 3
+register = 2000
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "slow"
+pool_group = "Configuration"
+
+[[tags]]
+id = "rate_volume_units_code"
+name = "Rate Volume Units Code"
+description = "Raw rate volume unit code"
+read_function = 3
+register = 2002
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "slow"
+pool_group = "Configuration"
+
+[[tags]]
+id = "rate_time_base"
+name = "Rate Time Base"
+description = "0=second; 1=minute; 2=hour; 3=day"
+read_function = 3
+register = 2003
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "slow"
+pool_group = "Configuration"
+
+[[tags]]
+id = "lcd_contrast"
+name = "LCD Contrast"
+description = "Allowed range 0-31"
+read_function = 3
+write_function = 16
+register = 1016
+data_type = "uint16"
+access = "read_write"
+default_enabled = false
+poll_group = "slow"
+pool_group = "Configuration"
+

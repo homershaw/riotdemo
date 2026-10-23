@@ -1,0 +1,224 @@
+# RIOT reusable profile: SCADAPack 4102MMT, metric, read-only.
+# DOCUMENTED COMPATIBILITY: Manufacturer map for 4102MMT type 41020/41021.
+# Source: Schneider Electric, SCADAPack 4000 Transmitters Models 4012,
+# 4032 and 4102 - Installation, Operation and Maintenance Setup Manual.
+# Document version 2.27.1.197, 2017-02-24 (printed page numbers below).
+# https://www.se.com/in/en/download/document/SCADAPack4000SeriesTransmitter/
+# https://download.se.com/files?p_Doc_Ref=SCADAPack4000SeriesTransmitter&p_File_Name=SCADAPack%204000%20Series%20Transmitters.pdf
+# This is the transmitter map, not a host Realflo flow-rate/total map.
+# No connected instrument was used. No claim of live configuration match.
+# RIOT PARSER VALIDATION: PENDING until exact file accepted by RIOT validator.
+# LIVE HARDWARE VALIDATION: PENDING.
+# TOML syntax and supplied parser checklist: reviewed locally.
+#
+# SOURCE VERIFICATION TABLE (all registers are printed holding references):
+# Tag                 Register(s)       Evidence / printed pages
+# dp                  40401-40402       Primary variable DP for MMT, pp39,75
+# static_pressure     40403-40404       Secondary variable SP for MMT, pp39-40,75
+# temperature         40405-40406       Tertiary variable RTD, pp40,75
+# dp_units            40060             DP unit code 3=kPa, pp40-41,58
+# static_units        40061             SP unit code 3=kPa, pp41,59
+# temperature_units   40062             RTD unit code 20=degrees C, pp41,59
+# float_format        40132             Fixed code 0=ABCD Realflo format, p63
+# model_type          40002             41020/41021=4102MMT, p57
+# firmware_revision   40003             Raw transmitter software revision, p57
+# modbus_revision     40010             Mapping/protocol revision fixed at 1, pp42,58
+# static_sensor_type  40011             Holding map: 0=absolute,1=gage, p43
+#
+# KEY FIELD EVIDENCE / CHOICES:
+# Vendor/model: manual cover and type-code table p57.
+# RTU: Modbus Protocols p36. Unit 1: user-requested default, not a factory claim.
+# FC3: supported holding-register read function, p37. Every tag uses FC3.
+# address_format=reference: preserve manufacturer 4xxxx references; RIOT
+# converts to zero-based wire address register-40001 (40401 -> 400).
+# uint16: manual Integer=unsigned 0..65535, p37. Codes kept raw, scale 1.
+# float32: IEEE754, 2 consecutive registers in one command, p38.
+# HIGH_LOW: p63 fixed ABCD bytes imply most-significant word AB before CD.
+# No device packing, short_packing or long_packing is needed or supplied.
+# Process scale 1.0: values already in configured engineering units, pp39-41.
+# Units are CONFIGURABLE wire units, not guaranteed defaults/display labels.
+# This variant requires DP=kPa, SP=kPa, RTD=degrees C (codes 3,3,20).
+# Static pressure is intentionally not labeled absolute/gage; read 40011.
+# NOTE 30011 has opposite sensor-type code meanings; this file uses 40011.
+# Access=read for every tag. Configuration registers documented R/W are
+# deliberately exposed only for readback; no write_function is supplied.
+# poll_group groups actual requests; pool_group is only a UI grouping label.
+# default_enabled=false is a commissioning choice, not device documentation.
+#
+# COMMISSIONING CONDITIONS:
+# [ ] Confirm physical device is 4102MMT; type readback 41020 or 41021.
+# [ ] Record firmware revision. Manual does not state a minimum RTU firmware
+#     for these points; do not infer one from its document version.
+# [ ] Confirm map/protocol revision 1 and compatibility with cited manual.
+# [ ] Match actual serial baud/framing and address to RIOT; address 1 is requested.
+# [ ] Confirm fixed format readback 0; ABCD, not CDAB/DCBA/BADC.
+# [ ] Confirm unit readbacks 40060=3,40061=3,40062=20 before process use.
+# [ ] Confirm static pressure reference (40011) and atmospheric reference if gage.
+# [ ] Confirm RTD installed/configured; review device diagnostics and mode.
+# Diagnostic bitfields are omitted; this profile does not automatically convert
+# transmitter diagnostic flags into RIOT per-tag measurement quality.
+#
+# FUTURE TEST PLAN:
+# 1. Validate exact TOML with actual RIOT validator before installation/use.
+# 2. Start read-only with identity/configuration tags; verify conditions above.
+# 3. Enable process tags; read each float's two words in one Modbus command.
+# 4. Compare DP/SP/RTD with calibrated reference or trusted instrument readout
+#    over representative values; confirm units, sign, pressure basis and scaling.
+# 5. Check device diagnostic flags independently and RIOT timeout/quality
+#    behavior, including lost communication and recovery.
+# 6. Unit changes require offline mode (pp40-41); this file does not perform them.
+#    Any future configuration/output write requires explicit authorization and
+#    confirmation, manufacturer interlocks and a controlled procedure. Preserve
+#    write protection; do not actuate outputs or alter calibration during checks.
+
+schema_version = 2
+
+[device]
+profile_id = "scadapack_4102_metric"
+profile_version = 1
+vendor = "Schneider Electric"
+model = "SCADAPack 4102MMT"
+description = "4102 multivariable transmitter; kPa DP, kPa static pressure, degrees C RTD; fixed Realflo ABCD format"
+
+[modbus]
+transport = "rtu"
+unit_id = 1
+address_format = "reference"
+
+[[tags]]
+id = "dp"
+name = "Differential Pressure"
+read_function = 3
+register = 40401
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "kPa"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process"
+
+[[tags]]
+id = "static_pressure"
+name = "Static Pressure"
+read_function = 3
+register = 40403
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "kPa"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process"
+
+[[tags]]
+id = "temperature"
+name = "RTD Temperature"
+read_function = 3
+register = 40405
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "°C"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process"
+
+[[tags]]
+id = "dp_units"
+name = "DP Unit Code"
+read_function = 3
+register = 40060
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "static_units"
+name = "Static Pressure Unit Code"
+read_function = 3
+register = 40061
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "temperature_units"
+name = "RTD Unit Code"
+read_function = 3
+register = 40062
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "float_format"
+name = "Float Format Code"
+read_function = 3
+register = 40132
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "model_type"
+name = "Model Type Code"
+read_function = 3
+register = 40002
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "identity"
+pool_group = "Identity"
+
+[[tags]]
+id = "firmware_revision"
+name = "Transmitter Firmware Revision Raw"
+read_function = 3
+register = 40003
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "identity"
+pool_group = "Identity"
+
+[[tags]]
+id = "modbus_revision"
+name = "Modbus Map Revision"
+read_function = 3
+register = 40010
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "identity"
+pool_group = "Identity"
+
+[[tags]]
+id = "static_sensor_type"
+name = "Static Pressure Reference Code"
+read_function = 3
+register = 40011
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"

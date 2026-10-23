@@ -1,0 +1,38 @@
+# RIOT Modbus Test Unit - device configuration (factory defaults)
+schema_version = 1
+
+[wifi]
+ssid = "modbus-test"
+password = "riotwifi"
+ip_mode = "dhcp"            # "dhcp" or "static"
+static_ip = "192.168.1.50"
+netmask = "255.255.255.0"
+gateway = "192.168.1.1"
+dns = "192.168.1.1"
+connect_timeout_s = 20
+portal_after_s = 120
+
+[portal]
+ap_password = ""            # empty = open riot-XXXX setup AP
+
+[modbus]
+port = 502
+max_clients = 4
+respond_to_any_unit_id = false
+unmapped_read = "exception" # "exception" (02) or "zero"
+strict_function_codes = true
+idle_timeout_s = 60
+
+[[devices]]
+unit_id = 1
+profile = "test_bench.toml"
+sim = "test_bench.sim.toml"
+enabled = true
+
+[web]
+admin_password = ""
+
+[display]
+rotation = 1
+brightness = 80
+sleep_after_s = 0

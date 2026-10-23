@@ -1,0 +1,203 @@
+# Rosemount 3095FB reusable RIOT profile; metric configuration.
+# DOCUMENTED COMPATIBILITY: manufacturer mapping verified for the conditions below.
+# RIOT PARSER VALIDATION: PENDING; exact file must be accepted by RIOT before install.
+# LIVE HARDWARE VALIDATION: PENDING. No connected instrument was used.
+#
+# Primary source: Rosemount Reference Manual 00809-0100-4738, Rev DA,
+# May 2006; Section 3 incorporates Modbus Protocol Guide Revision F.
+# Manufacturer-authored document reproduced by ManualsLib, not a reseller map.
+# Manual: https://www.manualslib.com/manual/1307677/Rosemount-3095fb.html
+# S1: Section 2.3, guide p8 / PDF p39:
+# https://www.manualslib.com/manual/1307677/Rosemount-3095fb.html?page=39
+# S2: Table 2-2, guide p9 / PDF p40:
+# https://www.manualslib.com/manual/1307677/Rosemount-3095fb.html?page=40
+# S3: Section 2.6.1, guide p16 / PDF p47:
+# https://www.manualslib.com/manual/1307677/Rosemount-3095fb.html?page=47
+# S4: Section 3.4, Tables 3-3 through 3-5, guide p23 / PDF p54:
+# https://www.manualslib.com/manual/1307677/Rosemount-3095fb.html?page=54
+# S5: Section 5.1, Tables 5-1 and 5-2, guide p31 / PDF p62:
+# https://www.manualslib.com/manual/1307677/Rosemount-3095fb.html?page=62
+# S6: Table 5-2 continuation, guide p32 / PDF p63:
+# https://www.manualslib.com/manual/1307677/Rosemount-3095fb.html?page=63
+# S7: Sections 2.0-2.1, guide p6 / PDF p37:
+# https://www.manualslib.com/manual/1307677/Rosemount-3095fb.html?page=37
+# S8: Software identification, PDF p3:
+# https://www.manualslib.com/manual/1307677/Rosemount-3095fb.html?page=3
+#
+# SOURCE VERIFICATION TABLE
+# Tag / printed manufacturer registers / encoding / evidence
+# differential_pressure / 0401,0402 / IEEE754 float32, RO / S1,S3,S5
+# static_pressure / 0403,0404 / IEEE754 float32, RO / S1,S3,S5
+# process_temperature / 0405,0406 / IEEE754 float32, RO / S1,S3,S5
+# dp_unit_code / 0060 / U8 in low byte of U16; expected 3 / S1,S2,S5
+# sp_unit_code / 0061 / U8 in low byte of U16; expected 3 / S1,S2,S5
+# pt_unit_code / 0062 / U8 in low byte of U16; expected 20 / S1,S2,S6
+# float_format_code / 0132 / unsigned holding register; expected 0 / S2,S4
+# Key fields / evidence:
+# vendor/model/description = Rosemount/3095FB/MultiVariable transmitter / S8
+# transport = rtu / S7
+# unit_id = 1 / USER-SUPPLIED site default, not claimed factory default
+# address_basis = one_based / S1 explicitly requires subtracting one
+# read_function = 4 / S2,S3; FC3/FC4 interchangeable for this transmitter
+# float word_order = HIGH_LOW / S4 code 0 ABCD; S3 example 42 C8 00 00
+# scale = 1.0 / S5 values already in configured engineering units
+# units = kPa,kPa,degC / S5,S6 unit codes 3,3,20 respectively
+# integer scales = 1.0 / raw unsigned enumeration values, no conversion
+# schema/id/version/names/default_enabled/groups = RIOT authoring choices
+#
+# CONFIGURATION AND COMMISSIONING CONDITIONS
+# [ ] Actual instrument is 3095FB with Modbus RTU, not 3095FC or emulation.
+# [ ] Output board software Rev 107 or later; manual identifies software 110.
+#     Rev107 introduces selectable float formats (S4). Other revisions need review.
+# [ ] Float format code at 0132 is 0: ABCD, high word then low word.
+#     This file does not support codes 1,2,3 without revising decoding.
+# [ ] DP unit 0060 = 3; SP unit 0061 = 3; PT unit 0062 = 20.
+#     These are configurable transmitted PV units, not fixed universal wire units.
+# [ ] RTD is installed/configured and temperature measurement is valid.
+# [ ] Verify SP sensor is absolute or gauge against model/configuration.
+#     kPa alone does not identify pressure reference; do not assume absolute.
+# [ ] Actual slave address is 1; match actual baud, fixed 8N1.
+#     S7 permits 1200,2400,4800,9600. Baud is omitted from this TOML.
+# [ ] Validate exact TOML with the active RIOT validator before installing.
+#
+# ADDRESS AND ENCODING EXPLANATION
+# Printed numbers remain intact in register fields (decimal without leading zeros).
+# RIOT subtracts one: 401->400,403->402,405->404,60->59,61->60,
+# 62->61,132->131. These are base offsets, not 3xxxx reference families.
+# Each float reads TWO consecutive 16-bit registers in ONE FC4 transaction.
+# Do not use the device's single 32-bit-register aliases 7401/7402/7403.
+# uint16 preserves documented U8 values stored as 00xx; no bit extraction needed.
+# All Tags use access=read. Unit and format settings are manufacturer writable
+# and write-protected, but this profile exposes only their readback.
+# No device packing, short_packing or long_packing is needed; Tag word_order
+# defines floats and integer byte transmission order is unaffected by S4.
+# poll_group separates process polls from configuration verification polls.
+# pool_group supplies display grouping only. Tags start disabled for commissioning.
+# No automatic unit/format mismatch interlock is implemented by these Tags.
+# Unsupported strings, wide integers, packed status fields and commands omitted.
+#
+# FUTURE READ-ONLY TEST PLAN
+# 1. Obtain RIOT parser acceptance; retain exact file/version and result.
+# 2. Check conditions above; initially enable only configuration readback Tags.
+#    Read FC4 offsets 59..61 and 131; require values 3,3,20 and 0.
+#    If they differ, stop commissioning this configuration; do not write fixes.
+# 3. Enable PV Tags; verify requests use FC4 offsets 400,402,404 with qty2.
+#    Compare each value with manufacturer configurator/reference in matching units.
+#    Check multiple stable readings and normal process variation; verify SP basis.
+# 4. Check instrument diagnostics independently, then test communications loss
+#    in an approved test setting; ensure RIOT quality becomes BAD/stale correctly.
+#    Do not use unvalidated values as PID/AGA inputs.
+# 5. Record firmware, unit/format codes, baud, reference readings and quality.
+#    Mark hardware validation complete only after commissioning evidence.
+# 6. This profile has no output writes. Any later device-setting/calibration/reset
+#    write requires explicit authorization and confirmation of target, value,
+#    maintenance interlocks and process consequences; no broadcast or actuation.
+#
+schema_version = 2
+
+[device]
+profile_id = "rosemount_3095fb_metric"
+profile_version = 1
+vendor = "Rosemount"
+model = "3095FB"
+description = "3095FB MultiVariable transmitter; read-only metric PVs; float format code 0"
+
+[modbus]
+transport = "rtu"
+unit_id = 1
+address_basis = "one_based"
+
+[[tags]]
+id = "differential_pressure"
+name = "Differential Pressure"
+read_function = 4
+register = 401
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "kPa"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process Values"
+
+[[tags]]
+id = "static_pressure"
+name = "Static Pressure"
+read_function = 4
+register = 403
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "kPa"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process Values"
+
+[[tags]]
+id = "process_temperature"
+name = "Process Temperature"
+read_function = 4
+register = 405
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "degC"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process Values"
+
+[[tags]]
+id = "dp_unit_code"
+name = "DP Unit Code"
+description = "Required value 3: kilopascals"
+read_function = 4
+register = 60
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration Readback"
+
+[[tags]]
+id = "sp_unit_code"
+name = "SP Unit Code"
+description = "Required value 3: kilopascals"
+read_function = 4
+register = 61
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration Readback"
+
+[[tags]]
+id = "pt_unit_code"
+name = "PT Unit Code"
+description = "Required value 20: degrees Celsius"
+read_function = 4
+register = 62
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration Readback"
+
+[[tags]]
+id = "float_format_code"
+name = "Floating Point Format Code"
+description = "Required value 0: ABCD byte transmission order"
+read_function = 4
+register = 132
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration Readback"
+

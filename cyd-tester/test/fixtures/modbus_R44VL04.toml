@@ -1,0 +1,119 @@
+# Manufacturer source: R4DVI04_R4DIK04_R44VL04_R44IM04 Modbus Rtu Command.pdf
+# Download: https://485io.com/eletechsup/R4DVI04_R4DIK04_R44VL04_R44IM04-1.rar
+# Documentation-only profile; live RIOT import/polling has not been validated.
+# UNVERIFIED: analog signedness; DI3/DI4 conflicting map; firmware revision.
+# Packing omitted: no explicit named packing convention documented.
+schema_version = 1
+
+[device]
+profile_id = "modbus_r44vl04"
+profile_version = 1
+vendor = "Eletechsup"
+model = "r44vl04"
+description = "Eletechsup R44VL04 Modbus I/O board - verified read-only subset"
+
+[modbus]
+transport = "rtu"
+default_baud = 9600
+# Explicit register addresses below are copied from the command manual.
+# address_basis omitted: no explicit named basis stated.
+# unit_id omitted: example address 1 is not an explicit factory default.
+
+[[tags]]
+id = "di_1_status"
+name = "Digital Input 1 Status"
+description = "Read status of manufacturer channel 0; physical terminal IN1."
+function = 2
+register = 0
+data_type = "bool"
+access = "read"
+default_enabled = true
+poll_group = "status"
+
+[[tags]]
+id = "di_2_status"
+name = "Digital Input 2 Status"
+description = "Read status of manufacturer channel 1; physical terminal IN2."
+function = 2
+register = 1
+data_type = "bool"
+access = "read"
+default_enabled = true
+poll_group = "status"
+
+[[tags]]
+id = "do_1_status"
+name = "Digital Output 1 Status"
+description = "Read status of manufacturer channel 0; physical terminal O1."
+function = 1
+register = 0
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+
+[[tags]]
+id = "do_2_status"
+name = "Digital Output 2 Status"
+description = "Read status of manufacturer channel 1; physical terminal O2."
+function = 1
+register = 1
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+
+[[tags]]
+id = "do_3_status"
+name = "Digital Output 3 Status"
+description = "Read status of manufacturer channel 2; physical terminal O3."
+function = 1
+register = 2
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+
+[[tags]]
+id = "do_4_status"
+name = "Digital Output 4 Status"
+description = "Read status of manufacturer channel 3; physical terminal O4."
+function = 1
+register = 3
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+
+[[tags]]
+id = "baud_rate_code"
+name = "Baud Rate Code"
+description = "Documented two-byte code: 0=1200, 1=2400, 2=4800, 3=9600, 4=19200, 5=38400, 6=57600, 7=115200."
+function = 3
+register = 254
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+
+[[tags]]
+id = "parity_code"
+name = "Parity Code"
+description = "Documented two-byte code: 0=None, 1=Even, 2=Odd."
+function = 3
+register = 255
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+
+[[tags]]
+id = "di_do_relationship"
+name = "Input Output Relationship Code"
+description = "Documented two-byte code: 0=Unrelated, 1=Self-locking, 2=Interlocking, 3=Momentary, 4=Interlocking two channels, 5=Output equals input."
+function = 3
+register = 250
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"

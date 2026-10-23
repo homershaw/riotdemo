@@ -1,0 +1,174 @@
+# RIOT Modbus Test Unit - built-in bench profile
+# Purpose: exercise every data type, function code, word order and write path
+# the RIOT supports, against the ESP32-2432S028 test unit.
+# address_format = reference: 4xxxx -> FC3 wire (ref - 40001), 3xxxx -> FC4,
+# 1xxxx -> FC2, 0xxxx -> FC1. Values are SIMULATED - not a real field device.
+# Validation status: bench test fixture only.
+
+schema_version = 2
+
+[device]
+profile_id = "test_bench"
+profile_version = 1
+vendor = "RIOT Test"
+model = "Modbus Test Unit"
+description = "Simulated bench device covering bool/uint16/int16/float32, ABCD and CDAB"
+
+[modbus]
+# transport omitted: the test unit serves Modbus TCP; only "rtu" appears in
+# existing RIOT profiles, so set whatever the RIOT parser accepts for TCP.
+unit_id = 1
+address_format = "reference"
+
+# ---- Floats, high word first (ABCD) -------------------------------------
+
+[[tags]]
+id = "dp"
+name = "Differential Pressure"
+read_function = 3
+register = 40401
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "kPa"
+access = "read"
+default_enabled = true
+poll_group = "process"
+pool_group = "Measurements"
+
+[[tags]]
+id = "sp"
+name = "Static Pressure"
+read_function = 3
+register = 40403
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "kPa"
+access = "read"
+default_enabled = true
+poll_group = "process"
+pool_group = "Measurements"
+
+# ---- Float, word-swapped (CDAB) -----------------------------------------
+
+[[tags]]
+id = "temperature_cdab"
+name = "Process Temperature (CDAB)"
+read_function = 3
+register = 40405
+data_type = "float32"
+word_order = "LOW_HIGH"
+scale = 1.0
+units = "degC"
+access = "read"
+default_enabled = true
+poll_group = "process"
+pool_group = "Measurements"
+
+# ---- Input registers (FC4), scaled integers -----------------------------
+
+[[tags]]
+id = "battery_voltage"
+name = "Battery Voltage"
+read_function = 4
+register = 30001
+data_type = "uint16"
+scale = 0.01
+units = "VDC"
+access = "read"
+default_enabled = true
+poll_group = "diagnostics"
+pool_group = "Diagnostics"
+
+[[tags]]
+id = "enclosure_temp"
+name = "Enclosure Temperature"
+read_function = 4
+register = 30002
+data_type = "int16"
+scale = 0.1
+units = "degC"
+access = "read"
+default_enabled = true
+poll_group = "diagnostics"
+pool_group = "Diagnostics"
+
+[[tags]]
+id = "light_level"
+name = "Light Sensor (LDR, live)"
+read_function = 4
+register = 30003
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "diagnostics"
+pool_group = "Diagnostics"
+
+# ---- Holding registers, writable ----------------------------------------
+
+[[tags]]
+id = "setpoint"
+name = "Pressure Setpoint"
+read_function = 3
+write_function = 16
+register = 40501
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "kPa"
+access = "read_write"
+default_enabled = false
+poll_group = "control"
+pool_group = "Control"
+
+[[tags]]
+id = "run_mode"
+name = "Run Mode Code"
+read_function = 3
+write_function = 6
+register = 40503
+data_type = "uint16"
+access = "read_write"
+default_enabled = false
+poll_group = "control"
+pool_group = "Control"
+
+# ---- Discrete inputs (FC2) ----------------------------------------------
+
+[[tags]]
+id = "high_alarm"
+name = "High Pressure Alarm"
+read_function = 2
+register = 10001
+data_type = "bool"
+access = "read"
+default_enabled = true
+poll_group = "status"
+pool_group = "Status"
+
+[[tags]]
+id = "door_open"
+name = "Door Open"
+read_function = 2
+register = 10002
+data_type = "bool"
+access = "read"
+default_enabled = true
+poll_group = "status"
+pool_group = "Status"
+
+# ---- Coils (FC1 / FC5) --------------------------------------------------
+
+[[tags]]
+id = "pump_run"
+name = "Pump Run Command"
+read_function = 1
+write_function = 5
+register = 1
+data_type = "bool"
+access = "read_write"
+default_enabled = false
+poll_group = "control"
+pool_group = "Control"

@@ -1,0 +1,133 @@
+# Compatibility: ABB 267 Modbus multivariable, native ABB map, 16-bit access.
+# Required configured units: DP kPa (12), SP kPa (12), temperature degC (32).
+# Unit ID 1 is user-supplied, not a claimed factory default.
+# Manufacturer evidence:
+# ABB Modbus Registers 2108522MNAA, Rev AA; publication date not verified.
+# https://library.e.abb.com/public/c699f1a8d3114f308672de860edd6049/2108522MNAA.pdf
+# p2 section 2: base-one, FC4 process/FC3 configuration, IEEE high word first.
+# pp3,5 Table 3-1: unmarked rows apply to 267; process RO; units U16 R/W.
+# Verification (tag | 16-bit registers | 32-bit alternative | page):
+# differential_pressure | 401-402 | 21 | 3
+# static_pressure       | 403-404 | 22 | 3
+# process_temperature   | 405-406 | 23 | 3
+# dp_unit_code          | 481     | 191 | 5
+# sp_unit_code          | 482     | 192 | 5
+# temperature_unit_code | 483     | 193 | 5
+# Preserve printed starts; address_basis subtracts one on the wire.
+# Configured units already apply to process readings; scale 1 introduces no conversion.
+# Unit registers deliberately restricted to reads.
+# Transport context: ABB XSeriesG4 User Manual 2105166MNAA, Rev AA, p330.
+# https://library.e.abb.com/public/151c064a5b3902b785257d6c0066d52c/2105166MNAA.pdf
+# Documented compatibility: supported for the stated configuration.
+# No minimum 267 firmware/protocol revision identified in the register source.
+# RIOT parser acceptance: PENDING. TOML/checklist review is not parser acceptance.
+# Live hardware validation: PENDING.
+# Commissioning:
+# 1. Confirm Modbus-equipped 267 identity/options and firmware documentation.
+# 2. Verify RTU address 1, actual baud/parity/stop bits, native map and 16-bit access.
+# 3. Validate this exact file on RIOT; assign device while tags remain disabled.
+# 4. Enable unit reads first: require 12/12/32 before using labelled measurements.
+# 5. Enable process reads; compare DP/SP/T against independent/local readings.
+# 6. Verify high-word-first decoding, RTD versus sensor temperature configuration,
+#    calibration, damping, freshness and communication-loss quality.
+# 7. Start slowly (e.g. one-second polling); verify stable operation.
+# No writes included. Any later configuration/output write requires explicit
+# authorization, value confirmation and site interlock review.
+
+schema_version = 2
+
+[device]
+profile_id = "abb_267_metric"
+profile_version = 1
+vendor = "ABB"
+model = "267"
+description = "ABB 267 Modbus MVS sensor, native map, kPa/kPa/degC"
+
+[modbus]
+transport = "rtu"
+unit_id = 1
+address_basis = "one_based"
+
+[[tags]]
+id = "differential_pressure"
+name = "Differential Pressure"
+description = "Configured differential pressure."
+read_function = 4
+register = 401
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "kPa"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process"
+
+[[tags]]
+id = "static_pressure"
+name = "Static Pressure"
+description = "Configured static pressure."
+read_function = 4
+register = 403
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "kPa"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process"
+
+[[tags]]
+id = "process_temperature"
+name = "Process Temperature"
+description = "RTD or sensor temperature per configuration."
+read_function = 4
+register = 405
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "°C"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process"
+
+[[tags]]
+id = "dp_unit_code"
+name = "DP Unit Code"
+description = "Required value 12."
+read_function = 3
+register = 481
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "sp_unit_code"
+name = "SP Unit Code"
+description = "Required value 12."
+read_function = 3
+register = 482
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "temperature_unit_code"
+name = "Temperature Unit Code"
+description = "Required value 32."
+read_function = 3
+register = 483
+data_type = "uint16"
+scale = 1.0
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"

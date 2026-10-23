@@ -1,0 +1,902 @@
+# Source: Brennan Engineering, POC Modbus Map v2.66 (2026-05-12), https://beiwy.com/attachment/88/BEPOC_Modbus_Map_V2_66.pdf
+# BEPOC Modbus RTU, manufacturer printed references; schema 2 generic profile.
+# All points disabled by default. Writable commands can actuate equipment.
+# Compatible mapping is DOCUMENTED for v2.66; RIOT parser and live hardware checks PENDING.
+schema_version = 2
+
+[device]
+profile_id = "brennan_bepoc_v266"
+profile_version = 1
+vendor = "Brennan Engineering"
+model = "BEPOC"
+description = "BEPOC pump-off controller; Modbus map 2.66; RTU"
+
+[modbus]
+transport = "rtu"
+unit_id = 1
+address_format = "reference"
+
+[[tags]]
+id = "reset_malfunctions"
+name = "Reset Malfunctions"
+register = 1
+read_function = 1
+data_type = "bool"
+access = "read_write"
+write_function = 5
+default_enabled = false
+poll_group = "commands"
+
+[[tags]]
+id = "clear_alarms"
+name = "Clear Alarms"
+register = 2
+read_function = 1
+data_type = "bool"
+access = "read_write"
+write_function = 5
+default_enabled = false
+poll_group = "commands"
+
+[[tags]]
+id = "global_off"
+name = "Global Off"
+register = 100
+read_function = 1
+data_type = "bool"
+access = "read_write"
+write_function = 5
+default_enabled = false
+poll_group = "commands"
+
+[[tags]]
+id = "host_stop_motor"
+name = "Host Stop Motor"
+register = 101
+read_function = 1
+data_type = "bool"
+access = "read_write"
+write_function = 5
+default_enabled = false
+poll_group = "commands"
+
+[[tags]]
+id = "host_start_motor"
+name = "Host Start Motor"
+register = 102
+read_function = 1
+data_type = "bool"
+access = "read_write"
+write_function = 5
+default_enabled = false
+poll_group = "commands"
+
+[[tags]]
+id = "load_stored_cards"
+name = "Load Stored Cards"
+register = 103
+read_function = 1
+data_type = "bool"
+access = "read_write"
+write_function = 5
+default_enabled = false
+poll_group = "commands"
+
+[[tags]]
+id = "load_last_stroke_card"
+name = "Load Last Stroke Card"
+register = 109
+read_function = 1
+data_type = "bool"
+access = "read_write"
+write_function = 5
+default_enabled = false
+poll_group = "commands"
+
+[[tags]]
+id = "do5"
+name = "Digital Output 5"
+register = 229
+read_function = 1
+data_type = "bool"
+access = "read_write"
+write_function = 5
+default_enabled = false
+poll_group = "outputs"
+
+[[tags]]
+id = "do6"
+name = "Digital Output 6"
+register = 230
+read_function = 1
+data_type = "bool"
+access = "read_write"
+write_function = 5
+default_enabled = false
+poll_group = "outputs"
+
+[[tags]]
+id = "do7"
+name = "Digital Output 7"
+register = 231
+read_function = 1
+data_type = "bool"
+access = "read_write"
+write_function = 5
+default_enabled = false
+poll_group = "outputs"
+
+[[tags]]
+id = "do8"
+name = "Digital Output 8"
+register = 232
+read_function = 1
+data_type = "bool"
+access = "read_write"
+write_function = 5
+default_enabled = false
+poll_group = "outputs"
+
+[[tags]]
+id = "di1"
+name = "Digital Input 1"
+register = 10321
+read_function = 2
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "inputs"
+
+[[tags]]
+id = "di2"
+name = "Digital Input 2"
+register = 10322
+read_function = 2
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "inputs"
+
+[[tags]]
+id = "di3"
+name = "Digital Input 3"
+register = 10323
+read_function = 2
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "inputs"
+
+[[tags]]
+id = "di4"
+name = "Digital Input 4"
+register = 10324
+read_function = 2
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "inputs"
+
+[[tags]]
+id = "di5"
+name = "Digital Input 5"
+register = 10325
+read_function = 2
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "inputs"
+
+[[tags]]
+id = "di6"
+name = "Digital Input 6"
+register = 10326
+read_function = 2
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "inputs"
+
+[[tags]]
+id = "di7"
+name = "Digital Input 7"
+register = 10327
+read_function = 2
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "inputs"
+
+[[tags]]
+id = "di8"
+name = "Digital Input 8"
+register = 10328
+read_function = 2
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "inputs"
+
+[[tags]]
+id = "di9"
+name = "Digital Input 9"
+register = 10329
+read_function = 2
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "inputs"
+
+[[tags]]
+id = "di10"
+name = "Digital Input 10"
+register = 10330
+read_function = 2
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "inputs"
+
+[[tags]]
+id = "firmware_revision"
+name = "POC PCB Firmware Version"
+register = 30001
+read_function = 4
+data_type = "uint16"
+scale = 0.01
+access = "read"
+default_enabled = false
+poll_group = "diagnostics"
+
+[[tags]]
+id = "hardware_generation"
+name = "PCB Hardware Generation"
+register = 30008
+read_function = 4
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "diagnostics"
+
+[[tags]]
+id = "well_state"
+name = "Well State"
+register = 32501
+read_function = 4
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "status"
+
+[[tags]]
+id = "stroke_period"
+name = "Stroke Period"
+register = 32506
+read_function = 4
+data_type = "uint16"
+scale = 0.01
+units = "s"
+access = "read"
+default_enabled = false
+poll_group = "status"
+
+[[tags]]
+id = "motor_rpm"
+name = "Current Motor RPM"
+register = 32510
+read_function = 4
+data_type = "uint16"
+units = "rpm"
+access = "read"
+default_enabled = false
+poll_group = "status"
+
+[[tags]]
+id = "gear_reducer_load_pct"
+name = "Gear Reducer Load"
+register = 32520
+read_function = 4
+data_type = "uint16"
+units = "%"
+access = "read"
+default_enabled = false
+poll_group = "status"
+
+[[tags]]
+id = "structure_load_pct"
+name = "Structure Load"
+register = 32521
+read_function = 4
+data_type = "uint16"
+units = "%"
+access = "read"
+default_enabled = false
+poll_group = "status"
+
+[[tags]]
+id = "rod_string_load_pct"
+name = "Rod String Load"
+register = 32522
+read_function = 4
+data_type = "uint16"
+units = "%"
+access = "read"
+default_enabled = false
+poll_group = "status"
+
+[[tags]]
+id = "strokes_per_minute"
+name = "Strokes Per Minute"
+register = 32525
+read_function = 4
+data_type = "uint16"
+scale = 0.01
+units = "SPM"
+access = "read"
+default_enabled = false
+poll_group = "status"
+
+[[tags]]
+id = "peak_load_violations"
+name = "Peak Load Violations"
+register = 32530
+read_function = 4
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "status"
+
+[[tags]]
+id = "yesterday_cycle_count"
+name = "Yesterday Cycle Count"
+register = 32608
+read_function = 4
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "current_cycle_count"
+name = "Current Cycle Count"
+register = 32609
+read_function = 4
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "yesterday_percent_run"
+name = "Yesterday Percent Run"
+register = 32610
+read_function = 4
+data_type = "uint16"
+units = "%"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "current_percent_run"
+name = "Current Percent Run"
+register = 32611
+read_function = 4
+data_type = "uint16"
+units = "%"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "pump_fillage"
+name = "Pump Fillage"
+register = 32614
+read_function = 4
+data_type = "uint16"
+scale = 0.01
+units = "%"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "today_strokes"
+name = "Today Total Strokes"
+register = 32638
+read_function = 4
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "yesterday_strokes"
+name = "Yesterday Total Strokes"
+register = 32639
+read_function = 4
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "current_spm"
+name = "Current SPM"
+register = 32663
+read_function = 4
+data_type = "uint16"
+scale = 0.01
+units = "SPM"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "run_time_minutes"
+name = "Continuous Run Time"
+register = 32664
+read_function = 4
+data_type = "uint16"
+units = "min"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "oil_yesterday"
+name = "Yesterday Oil Production"
+register = 39748
+read_function = 4
+data_type = "uint16"
+scale = 0.1
+units = "bbl"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "water_yesterday"
+name = "Yesterday Water Production"
+register = 39749
+read_function = 4
+data_type = "uint16"
+scale = 0.1
+units = "bbl"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "oil_today"
+name = "Current Oil Production"
+register = 39752
+read_function = 4
+data_type = "uint16"
+scale = 0.1
+units = "bbl"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "water_today"
+name = "Current Water Production"
+register = 39753
+read_function = 4
+data_type = "uint16"
+scale = 0.1
+units = "bbl"
+access = "read"
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "ao1_ma"
+name = "AO1 Current"
+register = 30353
+read_function = 4
+data_type = "uint16"
+scale = 0.01
+units = "mA"
+access = "read"
+default_enabled = false
+poll_group = "outputs"
+
+[[tags]]
+id = "ao2_ma"
+name = "AO2 Current"
+register = 30363
+read_function = 4
+data_type = "uint16"
+scale = 0.01
+units = "mA"
+access = "read"
+default_enabled = false
+poll_group = "outputs"
+
+[[tags]]
+id = "ao2_set_ma"
+name = "AO2 Output Setpoint"
+register = 40642
+read_function = 3
+data_type = "uint16"
+scale = 0.02
+units = "mA"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "outputs"
+
+[[tags]]
+id = "ao3_set_ma"
+name = "AO3 Output Setpoint"
+register = 40644
+read_function = 3
+data_type = "uint16"
+scale = 0.02
+units = "mA"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "outputs"
+
+[[tags]]
+id = "pump_diameter"
+name = "Pump Diameter"
+register = 42188
+read_function = 3
+data_type = "uint16"
+scale = 0.01
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "ipa_water_cut"
+name = "IPA Water Cut"
+register = 42193
+read_function = 3
+data_type = "uint16"
+scale = 0.01
+units = "%"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "production"
+
+[[tags]]
+id = "control_mode"
+name = "Control Mode"
+register = 42195
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "operation_mode"
+name = "Operation Mode"
+register = 42196
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "host_switch"
+name = "Host Switch"
+register = 42197
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "on_hours"
+name = "Timed Mode On Hours"
+register = 42198
+read_function = 3
+data_type = "uint16"
+units = "h"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "on_minutes"
+name = "Timed Mode On Minutes"
+register = 42199
+read_function = 3
+data_type = "uint16"
+units = "min"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "off_hours"
+name = "Timed Mode Off Hours"
+register = 42200
+read_function = 3
+data_type = "uint16"
+units = "h"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "off_minutes"
+name = "Timed Mode Off Minutes"
+register = 42201
+read_function = 3
+data_type = "uint16"
+units = "min"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "power_on_delay"
+name = "Power On Delay"
+register = 42202
+read_function = 3
+data_type = "uint16"
+units = "s"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "start_alert_delay"
+name = "Start Alert Delay"
+register = 42203
+read_function = 3
+data_type = "uint16"
+units = "s"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "minimum_pump_strokes"
+name = "Minimum Pump Strokes"
+register = 42204
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "downtime_mode"
+name = "Downtime Mode"
+register = 42205
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "downtime_hours"
+name = "Downtime Hours"
+register = 42206
+read_function = 3
+data_type = "uint16"
+units = "h"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "downtime_minutes"
+name = "Downtime Minutes"
+register = 42207
+read_function = 3
+data_type = "uint16"
+units = "min"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "control"
+
+[[tags]]
+id = "hmi_start"
+name = "HMI Start"
+register = 42215
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "commands"
+
+[[tags]]
+id = "hmi_reset"
+name = "HMI Reset"
+register = 42216
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "commands"
+
+[[tags]]
+id = "low_rpm_limit"
+name = "Low RPM Limit"
+register = 42223
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "limits"
+
+[[tags]]
+id = "peak_load_limit"
+name = "Peak Load Limit"
+register = 42226
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "limits"
+
+[[tags]]
+id = "min_load_limit"
+name = "Minimum Load Limit"
+register = 42228
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "limits"
+
+[[tags]]
+id = "load_pumpoff_sp"
+name = "Load Pumpoff Setpoint"
+register = 42241
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "limits"
+
+[[tags]]
+id = "position_pumpoff_sp"
+name = "Position Pumpoff Setpoint"
+register = 42242
+read_function = 3
+data_type = "uint16"
+scale = 0.01
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "limits"
+
+[[tags]]
+id = "high_spm_malfunction_enable"
+name = "High SPM Malfunction Enable"
+register = 42248
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "limits"
+
+[[tags]]
+id = "high_spm_malfunction_sp"
+name = "High SPM Malfunction Setpoint"
+register = 42249
+read_function = 3
+data_type = "uint16"
+scale = 0.01
+units = "SPM"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "limits"
+
+[[tags]]
+id = "pumping_unit_type"
+name = "Pumping Unit Type"
+register = 42274
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "pump_setup"
+
+[[tags]]
+id = "crank_rotation"
+name = "Crank Rotation"
+register = 42275
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "pump_setup"
+
+[[tags]]
+id = "no_rpm_malf_seconds"
+name = "No RPM Malfunction Delay"
+register = 42470
+read_function = 3
+data_type = "uint16"
+units = "s"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "limits"
+
+[[tags]]
+id = "no_crank_malf_seconds"
+name = "No Crank Malfunction Delay"
+register = 42471
+read_function = 3
+data_type = "uint16"
+units = "s"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "limits"
+
+[[tags]]
+id = "vfd_ao1_mode"
+name = "VFD AO1 Mode"
+register = 42509
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "vfd"
+
+[[tags]]
+id = "vfd_speed_reference"
+name = "VFD Speed Reference"
+register = 42520
+read_function = 3
+data_type = "uint16"
+scale = 0.1
+units = "%"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "vfd"
+
+[[tags]]
+id = "com1_unit_id"
+name = "COM1 RTU Address"
+register = 42540
+read_function = 3
+data_type = "uint16"
+access = "read_write"
+write_function = 6
+default_enabled = false
+poll_group = "communications"
+

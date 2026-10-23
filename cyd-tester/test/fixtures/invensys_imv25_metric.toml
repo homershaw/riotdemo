@@ -1,0 +1,140 @@
+# RIOT Device Library - Invensys/Foxboro IMV25-M, metric configuration
+# Source: Foxboro MI 020-384, May 2010, Appendix A, pp. 76-79, 95-96, 105-106.
+# Applicable ONLY to IMV25-M Modbus model, not IMV25 HART variants.
+# Required transmitter units: 40060=3 (DP kPa), 40061=3 (SP kPa),
+# 40062=20 (process temperature deg C). These are configuration conditions,
+# NOT commands issued by this profile. All measurements use scale 1.0.
+# Float setting: register 40132 fixed at 0 = ABCD (IEEE754 high word first).
+# On-wire address conversion: reference 40401 -> offset 400 (FC03).
+# Serial framing/baud must be checked on the installed transmitter.
+# Mapped read-only items only; no configuration or calibration writes.
+# MANUFACTURER DOCUMENTATION COMPATIBILITY: documented for IMV25-M.
+# RIOT PARSER VALIDATION: PENDING actual RIOT validator acceptance.
+# LIVE HARDWARE VALIDATION: PENDING commissioning.
+
+schema_version = 2
+
+[device]
+profile_id = "invensys_imv25_metric"
+profile_version = 1
+vendor = "Invensys Foxboro"
+model = "IMV25-M"
+description = "IMV25-M Modbus multivariable transmitter; kPa/kPa/deg C configuration"
+
+[modbus]
+transport = "rtu"
+unit_id = 1
+address_format = "reference"
+
+[[tags]]
+id = "differential_pressure"
+name = "Differential Pressure"
+description = "Primary variable; requires transmitter DP unit code 3 (kPa)"
+read_function = 3
+register = 40401
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "kPa"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process"
+
+[[tags]]
+id = "static_pressure"
+name = "Static Pressure"
+description = "Secondary variable; requires SP unit code 3 (kPa); gauge or absolute depends on device configuration"
+read_function = 3
+register = 40403
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "kPa"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process"
+
+[[tags]]
+id = "process_temperature"
+name = "Process Temperature"
+description = "Tertiary variable, RTD; requires temperature unit code 20 (deg C)"
+read_function = 3
+register = 40405
+data_type = "float32"
+word_order = "HIGH_LOW"
+scale = 1.0
+units = "deg C"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process"
+
+[[tags]]
+id = "dp_unit_code"
+name = "DP Unit Code"
+read_function = 3
+register = 40060
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "sp_unit_code"
+name = "Static Pressure Unit Code"
+read_function = 3
+register = 40061
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "temperature_unit_code"
+name = "Temperature Unit Code"
+read_function = 3
+register = 40062
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "float_format_code"
+name = "Float Format Code"
+description = "Readback must equal 0, fixed ABCD IEEE754 word order"
+read_function = 3
+register = 40132
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "configuration"
+pool_group = "Configuration"
+
+[[tags]]
+id = "modbus_revision"
+name = "Modbus Mapping Revision"
+read_function = 3
+register = 40010
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "identity"
+pool_group = "Identity"
+
+[[tags]]
+id = "manufacturer_code"
+name = "Manufacturer Code"
+description = "Documented constant 4000"
+read_function = 3
+register = 40001
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "identity"
+pool_group = "Identity"

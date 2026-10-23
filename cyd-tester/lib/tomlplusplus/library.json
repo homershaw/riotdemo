@@ -1,0 +1,8 @@
+{
+  "name": "tomlplusplus",
+  "version": "3.4.0",
+  "description": "toml++ v3.4.0 single-header build (https://github.com/marzer/tomlplusplus), vendored because it is not in the PlatformIO registry.",
+  "license": "MIT",
+  "frameworks": "*",
+  "platforms": "*"
+}

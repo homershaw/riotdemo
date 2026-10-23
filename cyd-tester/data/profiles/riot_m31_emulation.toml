@@ -1,0 +1,227 @@
+# RIOT Modbus Test Unit - RIOT M31 I/O rack emulation
+# Serves the registers the RIOT's built-in M31 driver polls over Modbus TCP, so a
+# RIOT "M31 Rack" can point at this test unit instead of real hardware:
+#   DI1-4 FC2 wire 0-3, DO1-4 FC1 wire 0-3 (RIOT writes FC15),
+#   AI1-4 FC4 wire 0-3 and AO1-4 FC3 wire 0-3 as uint16 microamps (RIOT writes AO with FC6).
+# Values are SIMULATED. This is a test fixture, not the RIOT riot_m31 driver profile.
+
+schema_version = 2
+
+[device]
+profile_id = "riot_m31_emulation"
+profile_version = 1
+vendor = "RIOT Test"
+model = "M31 I/O Rack Emulation"
+description = "Emulates the RIOT M31 rack's Modbus TCP register map"
+
+[modbus]
+unit_id = 1
+address_format = "zero_based"
+
+# ---- Analog inputs: uint16 microamps (0.001 mA) ----
+
+[[tags]]
+id = "ai1"
+name = "AI1"
+read_function = 4
+register = 0
+data_type = "uint16"
+scale = 0.001
+units = "mA"
+access = "read"
+default_enabled = true
+poll_group = "io"
+pool_group = "Analog Inputs"
+
+[[tags]]
+id = "ai2"
+name = "AI2"
+read_function = 4
+register = 1
+data_type = "uint16"
+scale = 0.001
+units = "mA"
+access = "read"
+default_enabled = true
+poll_group = "io"
+pool_group = "Analog Inputs"
+
+[[tags]]
+id = "ai3"
+name = "AI3"
+read_function = 4
+register = 2
+data_type = "uint16"
+scale = 0.001
+units = "mA"
+access = "read"
+default_enabled = true
+poll_group = "io"
+pool_group = "Analog Inputs"
+
+[[tags]]
+id = "ai4"
+name = "AI4"
+read_function = 4
+register = 3
+data_type = "uint16"
+scale = 0.001
+units = "mA"
+access = "read"
+default_enabled = true
+poll_group = "io"
+pool_group = "Analog Inputs"
+
+# ---- Digital inputs (FC2) ----
+
+[[tags]]
+id = "di1"
+name = "DI1"
+read_function = 2
+register = 0
+data_type = "bool"
+access = "read"
+default_enabled = true
+poll_group = "io"
+pool_group = "Digital Inputs"
+
+[[tags]]
+id = "di2"
+name = "DI2"
+read_function = 2
+register = 1
+data_type = "bool"
+access = "read"
+default_enabled = true
+poll_group = "io"
+pool_group = "Digital Inputs"
+
+[[tags]]
+id = "di3"
+name = "DI3"
+read_function = 2
+register = 2
+data_type = "bool"
+access = "read"
+default_enabled = true
+poll_group = "io"
+pool_group = "Digital Inputs"
+
+[[tags]]
+id = "di4"
+name = "DI4"
+read_function = 2
+register = 3
+data_type = "bool"
+access = "read"
+default_enabled = true
+poll_group = "io"
+pool_group = "Digital Inputs"
+
+# ---- Digital outputs (FC1 read, FC15 write) ----
+
+[[tags]]
+id = "do1"
+name = "DO1"
+read_function = 1
+write_function = 15
+register = 0
+data_type = "bool"
+access = "read_write"
+default_enabled = true
+poll_group = "io"
+pool_group = "Digital Outputs"
+
+[[tags]]
+id = "do2"
+name = "DO2"
+read_function = 1
+write_function = 15
+register = 1
+data_type = "bool"
+access = "read_write"
+default_enabled = true
+poll_group = "io"
+pool_group = "Digital Outputs"
+
+[[tags]]
+id = "do3"
+name = "DO3"
+read_function = 1
+write_function = 15
+register = 2
+data_type = "bool"
+access = "read_write"
+default_enabled = true
+poll_group = "io"
+pool_group = "Digital Outputs"
+
+[[tags]]
+id = "do4"
+name = "DO4"
+read_function = 1
+write_function = 15
+register = 3
+data_type = "bool"
+access = "read_write"
+default_enabled = true
+poll_group = "io"
+pool_group = "Digital Outputs"
+
+# ---- Analog outputs: uint16 microamps (FC3 read, FC6 write) ----
+
+[[tags]]
+id = "ao1"
+name = "AO1"
+read_function = 3
+write_function = 6
+register = 0
+data_type = "uint16"
+scale = 0.001
+units = "mA"
+access = "read_write"
+default_enabled = false
+poll_group = "io"
+pool_group = "Analog Outputs"
+
+[[tags]]
+id = "ao2"
+name = "AO2"
+read_function = 3
+write_function = 6
+register = 1
+data_type = "uint16"
+scale = 0.001
+units = "mA"
+access = "read_write"
+default_enabled = false
+poll_group = "io"
+pool_group = "Analog Outputs"
+
+[[tags]]
+id = "ao3"
+name = "AO3"
+read_function = 3
+write_function = 6
+register = 2
+data_type = "uint16"
+scale = 0.001
+units = "mA"
+access = "read_write"
+default_enabled = false
+poll_group = "io"
+pool_group = "Analog Outputs"
+
+[[tags]]
+id = "ao4"
+name = "AO4"
+read_function = 3
+write_function = 6
+register = 3
+data_type = "uint16"
+scale = 0.001
+units = "mA"
+access = "read_write"
+default_enabled = false
+poll_group = "io"
+pool_group = "Analog Outputs"

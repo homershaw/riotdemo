@@ -1,0 +1,11 @@
+schema_version = 2
+
+[device]
+profile_id = "riot_m31"
+profile_version = 1
+vendor = "RIOT"
+model = "M31 Configurable I/O Rack"
+description = "RIOT M31 modular I/O device"
+
+[driver]
+type = "m31"

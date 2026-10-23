@@ -1,0 +1,94 @@
+# Simulation sidecar for riot_m31_emulation.toml (test unit only - never upload to RIOT)
+# Values are in ENGINEERING units (mA); the unit stores microamps.
+
+schema_version = 1
+profile_id = "riot_m31_emulation"
+
+[[sim]]
+tag = "ai1"
+mode = "sine"
+min = 4.0
+max = 20.0
+period_s = 60
+update_ms = 500
+
+[[sim]]
+tag = "ai2"
+mode = "ramp"
+min = 4.0
+max = 20.0
+period_s = 120
+update_ms = 500
+
+[[sim]]
+tag = "ai3"
+mode = "static"
+initial = 12.0
+noise = 0.05
+update_ms = 1000
+
+[[sim]]
+tag = "ai4"
+mode = "static"
+initial = 8.0
+update_ms = 1000
+
+[[sim]]
+tag = "di1"
+mode = "toggle"
+period_s = 20
+
+[[sim]]
+tag = "di2"
+mode = "toggle"
+period_s = 45
+
+[[sim]]
+tag = "di3"
+mode = "static"
+initial = 0
+
+[[sim]]
+tag = "di4"
+mode = "static"
+initial = 1
+
+[[sim]]
+tag = "do1"
+mode = "echo"
+initial = 0
+
+[[sim]]
+tag = "do2"
+mode = "echo"
+initial = 0
+
+[[sim]]
+tag = "do3"
+mode = "echo"
+initial = 0
+
+[[sim]]
+tag = "do4"
+mode = "echo"
+initial = 0
+
+[[sim]]
+tag = "ao1"
+mode = "echo"
+initial = 4.0
+
+[[sim]]
+tag = "ao2"
+mode = "echo"
+initial = 4.0
+
+[[sim]]
+tag = "ao3"
+mode = "echo"
+initial = 4.0
+
+[[sim]]
+tag = "ao4"
+mode = "echo"
+initial = 4.0

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RIOT test unit</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div><b id="name">RIOT test unit</b> <span class="muted" id="fw"></span></div>
+  <div id="poll" class="pill">not polled</div>
+</header>
+<nav>
+  <a href="#dash">Dashboard</a><a href="#regs">Registers</a><a href="#devices">Devices</a>
+  <a href="#profiles">Profiles</a><a href="#sim">Simulation</a><a href="#settings">Settings</a>
+</nav>
+<main>
+  <section id="dash">
+    <div class="grid">
+      <div class="card"><h3>Network</h3><dl id="net"></dl></div>
+      <div class="card"><h3>Modbus TCP</h3><dl id="mb"></dl></div>
+    </div>
+    <div class="card"><h3>Requests by function code</h3><div id="byfc" class="muted">none yet</div></div>
+    <div class="card"><h3>Devices</h3><div id="dashdev"></div></div>
+  </section>
+
+  <section id="regs" hidden>
+    <div class="bar">
+      <label>Unit <select id="regUnit"></select></label>
+      <button id="resumeAll">Resume all</button>
+      <span class="muted" id="regInfo"></span>
+    </div>
+    <div class="scroll"><table id="regTable"></table></div>
+    <p class="muted">Tap a value to override it. Overridden values hold until Resume. Rows flash when a client reads them.</p>
+  </section>
+
+  <section id="devices" hidden>
+    <div class="card"><h3>Serving now</h3><div id="devRunning"></div></div>
+    <div class="card"><h3>Saved device map <span class="muted">(applies after reboot)</span></h3>
+      <div id="devSaved"></div>
+      <form id="devForm" class="row">
+        <label>Unit <input name="unit" type="number" min="1" max="247" required></label>
+        <label>Profile <select name="profile" id="devProfile"></select></label>
+        <label>Sim file <input name="sim" placeholder="optional .sim.toml"></label>
+        <label class="check"><input name="enabled" type="checkbox" checked> enabled</label>
+        <button>Save</button>
+      </form>
+      <button id="devReboot" class="warn">Reboot to apply</button>
+    </div>
+  </section>
+
+  <section id="profiles" hidden>
+    <div class="card"><h3>Upload profile</h3>
+      <form id="upForm" class="row"><input type="file" name="file" accept=".toml" required><button>Upload &amp; validate</button></form>
+      <p class="muted">Files are stored exactly as uploaded. Driver profiles (such as riot_m31.toml) are refused: they are not Modbus maps.</p>
+    </div>
+    <div class="card"><h3>Stored profiles</h3><div id="profList"></div></div>
+    <div class="card" id="valCard" hidden><h3 id="valTitle"></h3><div id="valBody"></div></div>
+  </section>
+
+  <section id="sim" hidden>
+    <div class="bar">
+      <label>Unit <select id="simUnit"></select></label>
+      <button id="simLoad">Reload</button><button id="simTemplate">Generate template</button>
+      <button id="simSave" class="primary">Save &amp; apply</button>
+    </div>
+    <textarea id="simText" spellcheck="false"></textarea>
+    <div id="simMsg" class="muted"></div>
+  </section>
+
+  <section id="settings" hidden>
+    <div class="bar">
+      <button id="cfgLoad">Reload</button><a class="button" href="/api/config" download="unit.toml">Export</a>
+      <label class="button">Import<input type="file" id="cfgImport" accept=".toml" hidden></label>
+      <button id="cfgSave" class="primary">Save</button><button id="cfgReboot" class="warn">Reboot</button>
+      <a class="button" href="/portal">Wi-Fi setup</a>
+    </div>
+    <textarea id="cfgText" spellcheck="false"></textarea>
+    <div id="cfgMsg" class="muted">Passwords show as ******** and are kept when saved unchanged.</div>
+  </section>
+</main>
+<div id="toast" hidden></div>
+<script src="/app.js"></script>
+</body>
+</html>

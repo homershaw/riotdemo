@@ -1,0 +1,276 @@
+# Profire PF2100; sources: Register Map v3.2 (July 2025), sections 3.1, 3.4, 3.5;
+# Modbus Card Manual v1.1, Appendix C.
+# Registers are printed Modbus reference numbers (address_format = "reference"); RIOT converts them to PDU offsets only on the wire.
+# Temperature scale: 1 degree Celsius/count, regardless of display units.
+# UNVERIFIED: 32/64-bit packing; live firmware/card applicability. No writable tags are defined.
+# Omitted: setpoint signedness, ESD hardware applicability, unsupported packed status words.
+schema_version = 2
+
+[device]
+profile_id = "profire_pf2100"
+profile_version = 3
+vendor = "Profire"
+model = "PF2100"
+description = "Profire PF2100 burner management controller"
+
+[modbus]
+transport = "rtu"
+address_format = "reference"
+unit_id = 10
+short_packing = "AB"
+# MSB first for 16-bit registers; no 32-bit values are defined here.
+# Baud and unit ID must match the existing working connection.
+
+[[tags]]
+id = "run"
+name = "Burner Run"
+description = "1 = run active; not flame proof."
+read_function = 2
+register = 10001
+data_type = "bool"
+access = "read"
+default_enabled = true
+poll_group = "status"
+pool_group = "Status"
+
+[[tags]]
+id = "pilot_output"
+name = "Pilot Output"
+description = "1 = energized; not position proof."
+read_function = 2
+register = 10002
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Outputs"
+
+[[tags]]
+id = "low_fire_output"
+name = "Low Fire Output"
+description = "1 = energized; not position proof."
+read_function = 2
+register = 10003
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Outputs"
+
+[[tags]]
+id = "high_fire_output"
+name = "High Fire Output"
+description = "1 = energized; not position proof."
+read_function = 2
+register = 10004
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Outputs"
+
+[[tags]]
+id = "level_input_open"
+name = "Level Input Open"
+description = "1 = open."
+read_function = 2
+register = 10017
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Inputs"
+
+[[tags]]
+id = "main_solenoid_feedback"
+name = "Main Solenoid Feedback"
+description = "1 = output voltage present."
+read_function = 2
+register = 10018
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Outputs"
+
+[[tags]]
+id = "pilot_solenoid_feedback"
+name = "Pilot Solenoid Feedback"
+description = "1 = output voltage present."
+read_function = 2
+register = 10019
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Outputs"
+
+[[tags]]
+id = "high_pressure_input_open"
+name = "High Pressure Input Open"
+description = "1 = open."
+read_function = 2
+register = 10020
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Inputs"
+
+[[tags]]
+id = "proof_of_closure_input_open"
+name = "Proof of Closure Input Open"
+description = "1 = open."
+read_function = 2
+register = 10021
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Inputs"
+
+[[tags]]
+id = "start_input_open"
+name = "Start Input Open"
+description = "1 = open."
+read_function = 2
+register = 10023
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Inputs"
+
+[[tags]]
+id = "low_pressure_input_open"
+name = "Low Pressure Input Open"
+description = "1 = open."
+read_function = 2
+register = 10024
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Inputs"
+
+[[tags]]
+id = "flame_detected"
+name = "Flame Detected"
+description = "1 = flame detected."
+read_function = 2
+register = 10025
+data_type = "bool"
+access = "read"
+default_enabled = true
+poll_group = "status"
+pool_group = "Status"
+
+[[tags]]
+id = "flame_test_failed"
+name = "Flame Test Failed"
+description = "1 = failed."
+read_function = 2
+register = 10026
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Status"
+
+[[tags]]
+id = "unit_failure"
+name = "Unit Failure"
+description = "1 = failed."
+read_function = 2
+register = 10027
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Status"
+
+[[tags]]
+id = "voltage_alarm"
+name = "Voltage Alarm"
+description = "1 = voltage alarm."
+read_function = 2
+register = 10028
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Status"
+
+[[tags]]
+id = "high_temperature_alarm"
+name = "High Temperature Alarm"
+description = "1 = alarm."
+read_function = 2
+register = 10029
+data_type = "bool"
+access = "read"
+default_enabled = true
+poll_group = "status"
+pool_group = "Status"
+
+[[tags]]
+id = "analog_card_alarm"
+name = "Analog Card Alarm"
+description = "1 = alarm."
+read_function = 2
+register = 10030
+data_type = "bool"
+access = "read"
+default_enabled = false
+poll_group = "status"
+pool_group = "Status"
+
+[[tags]]
+id = "high_temperature"
+name = "High Temperature"
+description = "Thermocouple, degrees Celsius."
+read_function = 4
+register = 30003
+data_type = "int16"
+access = "read"
+default_enabled = true
+poll_group = "process"
+pool_group = "Process"
+
+[[tags]]
+id = "process_temperature"
+name = "Process Temperature"
+description = "Thermocouple, degrees Celsius."
+read_function = 4
+register = 30004
+data_type = "int16"
+access = "read"
+default_enabled = true
+poll_group = "process"
+pool_group = "Process"
+
+[[tags]]
+id = "aux_temperature"
+name = "Auxiliary Temperature"
+description = "Thermocouple, degrees Celsius."
+read_function = 4
+register = 30005
+data_type = "int16"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process"
+
+[[tags]]
+id = "level_reading"
+name = "Level Reading"
+description = "Units configured at controller."
+read_function = 4
+register = 30011
+data_type = "uint16"
+access = "read"
+default_enabled = false
+poll_group = "process"
+pool_group = "Process"
+
+

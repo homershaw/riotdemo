@@ -1,0 +1,74 @@
+# Simulation sidecar for test_bench.toml (test unit only - never upload to RIOT)
+# Values are in ENGINEERING units; the unit applies scale and encoding.
+
+schema_version = 1
+profile_id = "test_bench"
+
+[[sim]]
+tag = "dp"
+mode = "sine"
+min = 5.0
+max = 20.0
+period_s = 60
+noise = 0.05
+update_ms = 500
+
+[[sim]]
+tag = "sp"
+mode = "random"
+min = 3400.0
+max = 3500.0
+update_ms = 1000
+
+[[sim]]
+tag = "temperature_cdab"
+mode = "ramp"
+min = 10.0
+max = 40.0
+period_s = 300
+update_ms = 1000
+
+[[sim]]
+tag = "battery_voltage"
+mode = "static"
+initial = 12.8
+noise = 0.05
+update_ms = 2000
+
+[[sim]]
+tag = "enclosure_temp"
+mode = "sine"
+min = -10.0
+max = 35.0
+period_s = 600
+update_ms = 2000
+
+[[sim]]
+tag = "light_level"
+mode = "ldr"          # live reading from the onboard light sensor (GPIO 34)
+update_ms = 500
+
+[[sim]]
+tag = "setpoint"
+mode = "echo"         # changes only when the RIOT writes it
+initial = 15.0
+
+[[sim]]
+tag = "run_mode"
+mode = "echo"
+initial = 1
+
+[[sim]]
+tag = "high_alarm"
+mode = "toggle"
+period_s = 30
+
+[[sim]]
+tag = "door_open"
+mode = "static"
+initial = 0
+
+[[sim]]
+tag = "pump_run"
+mode = "echo"
+initial = 0
