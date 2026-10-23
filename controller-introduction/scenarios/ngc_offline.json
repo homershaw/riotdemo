@@ -1,0 +1,1 @@
+{"id":"ngc_offline","name":"NGC Offline","description":"ABB NGC8206 communication is unavailable. Representative gas values remain last-known with BAD quality.","offline":["LD04"],"values":{}}

@@ -1,0 +1,1 @@
+{"id":"high_process_alarm","name":"High Process Alarm","description":"Process temperature exceeds the illustrative 90 deg C alarm threshold.","offline":[],"values":{"LIB.LD02.temperature":105.0}}

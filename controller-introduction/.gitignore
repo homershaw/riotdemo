@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+state/current_state.json
+state/current_state.tmp
+state/tag_prototype_v1.json
+state/tag_prototype_v1.tmp

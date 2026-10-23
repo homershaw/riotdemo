@@ -1,0 +1,54 @@
+{
+  "id": "normal_site",
+  "name": "Normal Site",
+  "description": "Healthy simulated gas well, burner, totalizer and I/O.",
+  "site": {"name": "Test Gas Well", "location": "01-02-03-04W5M"},
+  "profiles": [
+    {"id":"profire_pf2100","vendor":"Profire","model":"PF2100","name":"Profire PF2100","available":3,"validation":"Introduction example - not a validated field profile"},
+    {"id":"nuflo_mciii","vendor":"NuFlo","model":"MC-III","name":"NuFlo MC-III","available":3,"validation":"Introduction example - not a validated field profile"},
+    {"id":"riot_m31","vendor":"RIOT","model":"M31","name":"M31 Configurable I/O Rack","available":12,"validation":"Introduction example - active 4 AI / 4 DI / 4 DO"},
+    {"id":"r44vl04","vendor":"Generic","model":"R44VL04","name":"R44VL04","available":4,"validation":"Illustrative catalog entry - no installed Device or field validation"},
+    {"id":"abb_ngc8206","vendor":"ABB","model":"NGC8206","name":"ABB NGC8206","available":4,"validation":"Illustrative simulated Tags only - no register map or field validation"}
+  ],
+  "devices": [
+    {"id":"LD01","name":"M31 Rack","profile":"riot_m31","address":"192.0.2.31:502 / Unit 1","online":true,"driver":"m31","good":1240,"bad":0},
+    {"id":"LD02","name":"Burner","profile":"profire_pf2100","address":"192.0.2.21:502 / Unit 1","online":true,"driver":"generic","good":980,"bad":0},
+    {"id":"LD03","name":"Sales Totalizer","profile":"nuflo_mciii","address":"192.0.2.33:502 / Unit 1","online":true,"driver":"generic","good":1100,"bad":0},
+    {"id":"LD04","name":"Gas Chromatograph","profile":"abb_ngc8206","address":"192.0.2.46:502 / Unit 1","online":true,"driver":"generic","good":860,"bad":0}
+  ],
+  "tags": [
+    {"id":"ai1","device":"LD01","name":"M31 AI1","pool":"Analog Inputs","value":12.4,"units":"mA","group":4},
+    {"id":"ai2","device":"LD01","name":"M31 AI2","pool":"Analog Inputs","value":10.8,"units":"mA","group":4},
+    {"id":"ai3","device":"LD01","name":"M31 AI3","pool":"Analog Inputs","value":8.6,"units":"mA","group":4},
+    {"id":"ai4","device":"LD01","name":"M31 AI4","pool":"Analog Inputs","value":14.1,"units":"mA","group":4},
+    {"id":"di1","device":"LD01","name":"M31 DI1","pool":"Digital Inputs","value":true,"units":"","group":4},
+    {"id":"di2","device":"LD01","name":"M31 DI2","pool":"Digital Inputs","value":false,"units":"","group":4},
+    {"id":"di3","device":"LD01","name":"M31 DI3","pool":"Digital Inputs","value":true,"units":"","group":4},
+    {"id":"di4","device":"LD01","name":"M31 DI4","pool":"Digital Inputs","value":false,"units":"","group":4},
+    {"id":"do1","device":"LD01","name":"M31 DO1","pool":"Digital Outputs","value":false,"units":"","group":4},
+    {"id":"do2","device":"LD01","name":"M31 DO2","pool":"Digital Outputs","value":false,"units":"","group":4},
+    {"id":"do3","device":"LD01","name":"M31 DO3","pool":"Digital Outputs","value":true,"units":"","group":4},
+    {"id":"do4","device":"LD01","name":"M31 DO4","pool":"Digital Outputs","value":false,"units":"","group":4},
+    {"id":"burner_run","device":"LD02","name":"Burner Run","pool":"Burner","value":true,"units":"","group":2},
+    {"id":"flame","device":"LD02","name":"Flame Detected","pool":"Burner","value":true,"units":"","group":2},
+    {"id":"temperature","device":"LD02","name":"Process Temperature","pool":"Process","value":62.5,"units":"deg C","group":2},
+    {"id":"flow_rate","device":"LD03","name":"Sales Flow Rate","pool":"Production","value":24.6,"units":"E3m3/day","group":1},
+    {"id":"grand_total","device":"LD03","name":"Grand Total","pool":"Totalizer","value":18452.72,"units":"E3m3","group":3},
+    {"id":"battery","device":"LD03","name":"Battery Voltage","pool":"Diagnostics","value":3.6,"units":"V","group":3},
+    {"id":"methane","device":"LD04","name":"Methane","pool":"Gas Composition","value":94.2,"units":"mol %","group":5},
+    {"id":"ethane","device":"LD04","name":"Ethane","pool":"Gas Composition","value":3.1,"units":"mol %","group":5},
+    {"id":"heating_value","device":"LD04","name":"Heating Value","pool":"Gas Properties","value":38.6,"units":"MJ/m3","group":5},
+    {"id":"analysis_ready","device":"LD04","name":"Analysis Ready","pool":"Diagnostics","value":true,"units":"","group":5}
+  ],
+  "dashboard": {
+    "statusMask":15,
+    "primaryDevice":"DEV.LD01",
+    "groups":[
+      {"id":1,"name":"Production","order":1,"visible":true,"collapsed":false},
+      {"id":2,"name":"Burner","order":2,"visible":true,"collapsed":false},
+      {"id":3,"name":"Totalizer","order":3,"visible":true,"collapsed":false},
+      {"id":4,"name":"I/O","order":4,"visible":true,"collapsed":false},
+      {"id":5,"name":"Gas Quality","order":5,"visible":true,"collapsed":false}
+    ]
+  }
+}

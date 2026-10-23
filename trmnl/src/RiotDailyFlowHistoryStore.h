@@ -1,0 +1,41 @@
+#pragma once
+
+#include <Arduino.h>
+#include <FS.h>
+
+namespace RiotDailyFlowHistoryStore {
+
+struct Entry {
+  uint32_t magic;
+  uint16_t version;
+  uint16_t size;
+  uint32_t sequence;
+  uint32_t date;         // YYYYMMDD local date
+  uint8_t run;           // 0-based
+  uint8_t reserved[3];
+  float volumeE3m3;
+  float flowHours;
+  uint32_t checksum;
+};
+
+struct Stats {
+  uint16_t count;
+  uint16_t capacity;
+  uint32_t newestSequence;
+  uint32_t rolloverCount;
+};
+
+static constexpr uint32_t ENTRY_MAGIC = 0x52464446UL; // RFDF
+static constexpr uint16_t ENTRY_VERSION = 1;
+static constexpr uint16_t MAX_RECORDS = 2400;
+static constexpr const char* DEFAULT_PATH = "/flow_history_day.bin";
+
+void prepare(Entry& entry);
+bool valid(const Entry& entry);
+bool stats(fs::FS& fs, Stats& out, const char* path = DEFAULT_PATH);
+uint16_t count(fs::FS& fs, const char* path = DEFAULT_PATH);
+bool append(fs::FS& fs, Entry& entry, const char* path = DEFAULT_PATH);
+bool readNewest(fs::FS& fs, uint16_t newestOffset, Entry& entry, const char* path = DEFAULT_PATH);
+bool clear(fs::FS& fs, const char* path = DEFAULT_PATH);
+
+} // namespace RiotDailyFlowHistoryStore

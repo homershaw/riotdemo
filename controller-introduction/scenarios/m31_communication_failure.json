@@ -1,0 +1,1 @@
+{"id":"m31_communication_failure","name":"M31 Communication Failure","description":"Primary I/O is offline. Simulated DO actions are refused until communication returns.","offline":["LD01"],"values":{}}
