@@ -15,10 +15,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 from tag_prototype import PrototypeError, TagPrototype
+from tagsim import SimError, TagSim
 
 HERE = Path(__file__).resolve().parent
 PAGES = {"/", "/flow", "/rules", "/alarms", "/history", "/setup", "/device-library",
          "/devices", "/device", "/tag-manager", "/datalog", "/dashboard-layout", "/api-reference", "/maintenance"}
+TAGSIM_PAGES = {"/tc", "/tc/tags", "/tc/devices", "/tc/owner", "/tc/flow", "/tc/features", "/tc/logger", "/tc/maintenance"}
+TAGSIM_NAV = [("/tc", "Dashboard"), ("/tc/tags", "Tags"), ("/tc/devices", "Devices"), ("/tc/flow", "Flow and Control"),
+              ("/tc/features", "Features"), ("/tc/logger", "Logger"), ("/tc/maintenance", "Maintenance"), ("/", "Original Introduction")]
 PROTOTYPE_PAGES = {"/prototype/tags", "/prototype/tag", "/prototype/devices",
                    "/prototype/device", "/prototype/library", "/prototype/replacement"}
 
@@ -476,7 +480,8 @@ class Server(ThreadingHTTPServer):
     allow_reuse_address = False
 
     def __init__(self, port=8080, state_path=HERE / "state" / "current_state.json",
-                 prototype_state_path=HERE / "state" / "tag_prototype_v1.json"):
+                 prototype_state_path=HERE / "state" / "tag_prototype_v1.json",
+                 tagsim_state_path=HERE / "state" / "tag_centric_v1.json"):
         original_paths = {(HERE / "state" / "current_state.json").resolve()}
         if state_path is not None:
             original_paths.add(Path(state_path).resolve())
@@ -486,6 +491,7 @@ class Server(ThreadingHTTPServer):
         self.prototype = None
         self.prototype_state_path = prototype_state_path
         self.prototype_lock = threading.RLock()
+        self.tagsim = TagSim(tagsim_state_path)
         super().__init__(("127.0.0.1", port), Handler)
 
     def get_prototype(self):
@@ -527,6 +533,34 @@ class Handler(BaseHTTPRequestHandler):
             with self.server.sim.lock:
                 body = self.server.sim.sample_csv()
             self.reply(200, body, "text/csv", "JC-Riot-SIMULATED.csv")
+            return
+        if parsed.path in TAGSIM_PAGES:
+            shell = (HERE / "web" / "shell.html").read_text(encoding="utf-8")
+            shell = shell.replace("/web/introduction.js", "/web/tagsim.js")
+            shell = shell.replace("</head>", '<link rel="stylesheet" href="/web/tagsim.css"></head>')
+            shell = shell.replace("RIOT Controller Introduction</div>", "RIOT Tag-Centric Simulator</div>")
+            start = shell.index('<nav class="nav"')
+            end = shell.index("</nav>", start) + len("</nav>")
+            shell = shell[:start] + '<nav class="nav" aria-label="Simulator navigation">' + "".join(
+                f'<a href="{path}"{" aria-current=page" if path == parsed.path else ""}>{label}</a>' for path, label in TAGSIM_NAV) + "</nav>" + shell[end:]
+            start = shell.index('<div class="demoToolbar">')
+            end = shell.index("{{CONTENT}}", start)
+            shell = shell[:start] + ('<div class="demoToolbar"><b>TAG-CENTRIC DESIGN SIMULATOR</b><span>Sim time <time id="tcClock">--</time> (10x)</span>'
+                                     '<label>Example site <select id="tcExample"><option value="plunger">Plunger-lift well</option>'
+                                     '<option value="hub">Gathering hub (near 256 Tags)</option><option value="blank">Blank controller</option></select></label>'
+                                     '<button id="tcLoad">Load example</button><span id="tcNotice" role="status">Simulated values; no field connections.</span></div>') + shell[end:]
+            content = "<main class='wrap tc' id='tcPage'><p role='status'>Loading simulator...</p></main>"
+            self.reply(200, shell.replace("{{CONTENT}}", content), "text/html")
+            return
+        if parsed.path == "/api/tc/state":
+            with self.server.tagsim.lock:
+                self.reply(200, self.server.tagsim.snapshot())
+            return
+        if parsed.path == "/tc/log.csv":
+            with self.server.tagsim.lock:
+                self.server.tagsim.snapshot()
+                body = self.server.tagsim.csv()
+            self.reply(200, body, "text/csv", "RIOT-tag-sim-SIMULATED.csv")
             return
         if parsed.path in PROTOTYPE_PAGES:
             shell = (HERE / "web" / "shell.html").read_text(encoding="utf-8")
@@ -570,7 +604,8 @@ class Handler(BaseHTTPRequestHandler):
                 content = "<div class='wrap introCards' id='introPage'></div>" + content
             self.reply(200, shell.replace("{{CONTENT}}", content), "text/html")
         elif parsed.path in ("/web/riot.css", "/web/introduction.css", "/web/introduction.js",
-                             "/web/tag-prototype.css", "/web/tag-prototype.js", "/web/OAI-LOGO-SMALL.PNG"):
+                             "/web/tag-prototype.css", "/web/tag-prototype.js", "/web/OAI-LOGO-SMALL.PNG",
+                             "/web/tagsim.js", "/web/tagsim.css"):
             asset = HERE / "web" / parsed.path.rsplit("/", 1)[1]
             self.reply(200, asset.read_bytes(), mimetypes.guess_type(asset.name)[0] or "text/plain")
         else:
@@ -580,7 +615,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.trusted():
             return
         try:
-            length = integer(self.headers.get("Content-Length", ""), 0, 65536)
+            length = integer(self.headers.get("Content-Length", ""), 0, 262144)
             if self.headers.get_content_type() != "application/x-www-form-urlencoded":
                 raise InvalidDraft("Expected URL-encoded simulated action")
             body = self.rfile.read(length).decode("utf-8")
@@ -589,7 +624,13 @@ class Handler(BaseHTTPRequestHandler):
                 raise InvalidDraft("Duplicate action fields")
             params = {k: v[0] for k, v in values.items()}
             path = urlsplit(self.path).path
-            if path == "/api/prototype/save":
+            if path == "/api/tc/action":
+                try:
+                    result = self.server.tagsim.action(json.loads(params.get("json", "")))
+                except SimError as exc:
+                    self.reply(400, {"ok": False, "error": str(exc)})
+                    return
+            elif path == "/api/prototype/save":
                 with self.server.prototype_lock:
                     result = self.server.get_prototype().write(json.loads(params.get("draft", "")))
             else:

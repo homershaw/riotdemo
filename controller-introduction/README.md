@@ -67,6 +67,34 @@ The separate P0 Tag prototype is unchanged and is not affected by Reset Demo.
 - Zero JavaScript errors and zero non-loopback request attempts observed.
   All evidence is desktop simulation, not JC hardware or firmware validation.
 
+## Tag-centric design simulator
+
+**Design and training simulator for the proposed Tag model, not firmware.** It follows the
+*RIOT Tag-Centric Design Proposal* (October 24, 2026): every Tag belongs to the device or
+function that created it, is removed with it, and is edited in one Tag table.
+
+Start the server as usual (`start.bat`) and open **http://127.0.0.1:8080/tc**, or use the
+**Tag-Centric Simulator** link in the Introduction navigation. Pick an **Example site** and
+**Load example**: *Plunger-lift well* (M31, MVS, Flow run, Tubing Optimizer v8.00 feature, PID
+loop, Calculation; 39 Tags), *Gathering hub* (240 of 256 Tags) or *Blank controller*.
+
+| Page | What it shows |
+| --- | --- |
+| Dashboard | Tags with Dash ticked, and every owner |
+| Tags | The one Tag table: rename, units, 4-20 mA scaling, Log, Dash, HH/H/L/LL, Modbus address, Used by; one Save for all changed rows |
+| Devices | Add an M31 rack, Modbus device (profile), MVS, manual value or calculation; Remove shows what uses each Tag first |
+| Device page | Channel counts or selected points (Tags follow), simulated comms loss, Replace device (Tags keep ID and uses) |
+| Flow and Control | Flow runs (illustrative rate, hour, 06:00 day, grand) and PID loops with a simulated process |
+| Features | Tubing Optimizer v5 / v8.00 as add-on features with their own Tags; simplified cycle, not the real program |
+| Logger | Logging on/off and interval; CSV keyed by Tag ID |
+| Maintenance | Measurements: Tags used of 256, memory estimate, owners, PID loops, scan time; audit log |
+
+Limits: 256 Tags, 6 Flow runs, 6 MVS, 16 channels per type per M31 rack, PID loops 16 (a planning
+limit until measured on a JC and a Nano). Memory per Tag (116 B) is a planning estimate and the scan
+time is this PC's, not the controller's. Profiles are illustrative fixtures. Configuration is saved
+in `state/tag_centric_v1.json` (separate from the other demos); live values restart on server start.
+Model: `tagsim.py`; pages: `web/tagsim.js`, `web/tagsim.css`; tests: `tests/test_tagsim.py`.
+
 ## P0 Tag consolidation prototype
 
 **Configuration design prototype, not implemented in firmware.** From this
