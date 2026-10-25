@@ -123,6 +123,61 @@ class ModelTests(unittest.TestCase):
         level, _ = self.sim.eng(self.named("SEP_LEVEL"))
         self.assertAlmostEqual(level, 50.0, delta=3.0)
 
+    def advance(self, steps, seconds=2.0):
+        for _ in range(steps):
+            self.sim.last_tick -= seconds
+            self.sim.tick()
+
+    def test_alarms_are_high_and_low_only(self):
+        self.sim.add_owner({"kind": "m31", "ai": 1, "ao": 0, "di": 0, "do": 0})
+        tag = self.sim.cfg["tags"][0]
+        self.sim.save_tags([{"id": tag["id"], "alarms": {"hh": 99, "h": 80, "l": 20, "ll": 1}}])
+        self.assertEqual(self.sim.tag(tag["id"])["alarms"], {"h": 80.0, "l": 20.0})
+        with self.assertRaises(SimError):
+            self.sim.action({"op": "saveTags", "rows": [{"id": tag["id"], "alarms": {"h": 10, "l": 20}}]})
+        self.assertEqual(self.sim.alarm_state(self.sim.tag(tag["id"]), 85.0), "HIGH")
+        self.assertEqual(self.sim.alarm_state(self.sim.tag(tag["id"]), 10.0), "LOW")
+        self.assertEqual(self.sim.alarm_state(self.sim.tag(tag["id"]), 50.0), "")
+
+    def test_override_takes_and_returns_control_by_low_select(self):
+        self.sim.load_example("plunger")
+        active, ovr_sp = self.named("PID1.OVR_ACTIVE")["id"], self.named("PID1.OVR_SP")["id"]
+        self.advance(60)
+        self.assertEqual(self.sim.live[active], 0)
+        self.sim.set_value(ovr_sp, 4000)
+        self.advance(60)
+        self.assertEqual(self.sim.live[active], 1)
+        self.assertAlmostEqual(self.sim.eng(self.named("LINE_PRESS"))[0], 4000, delta=150)
+        self.sim.set_value(ovr_sp, 6000)
+        self.advance(80)
+        self.assertEqual(self.sim.live[active], 0)
+        self.assertAlmostEqual(self.sim.eng(self.named("SEP_LEVEL"))[0], 50, delta=3)
+
+    def test_manual_to_auto_is_bumpless_and_auto_refuses_manual_output(self):
+        self.sim.load_example("plunger")
+        auto, out = self.named("PID1.AUTO")["id"], self.named("PID1.OUT")["id"]
+        self.advance(60)
+        with self.assertRaises(SimError):
+            self.sim.set_value(out, 20)
+        self.sim.set_value(auto, 0)
+        self.sim.set_value(out, 20)
+        self.advance(5)
+        self.sim.set_value(auto, 1)
+        self.sim.last_tick -= 0.05
+        self.sim.tick()
+        self.assertAlmostEqual(self.sim.live[out], 20, delta=1.5)
+
+    def test_deadband_holds_output(self):
+        self.sim.load_example("plunger")
+        pid = next(o for o in self.sim.cfg["owners"] if o["kind"] == "pid")
+        self.advance(60)
+        self.sim.change_owner(pid["id"], {"deadband": 5})
+        out = self.named("PID1.OUT")["id"]
+        before = self.sim.live[out]
+        self.sim.set_value(self.named("PID1.SP")["id"], 52)   # error 2 % inside the 5 % deadband
+        self.advance(5)
+        self.assertAlmostEqual(self.sim.live[out], before, delta=0.5)
+
     def test_persistence_round_trip(self):
         self.sim.action({"op": "example", "name": "plunger"})
         reloaded = TagSim(self.path)

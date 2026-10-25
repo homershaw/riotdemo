@@ -61,6 +61,9 @@ FEATURES = {
                       ("SHUTIN_SP", "analog", "s", "setpoint"), ("OPEN_SP", "analog", "s", "setpoint"),
                       ("AFTERFLOW_SP", "analog", "s", "setpoint"), ("CRIT_RATE", "analog", "E3m3/d", "in")]},
 }
+# PID terms as on a FloBoss: Gain (%/%), Reset (repeats/min), Rate (min), Error deadband (PV units).
+PID_DEFAULTS = {"gain": 1.0, "reset": 0.5, "rate": 0.0, "deadband": 0.0, "override": False, "ovrPv": None,
+                "ovrGain": 1.0, "ovrReset": 0.5, "ovrRate": 0.0, "ovrDeadband": 0.0, "select": "low"}
 OPT_STATES = {0: "Stopped", 1: "Shut-in", 2: "Open", 3: "Afterflow"}
 FLOW_POINTS = [("RATE", "E3m3/d"), ("HOUR", "E3m3"), ("DAY", "E3m3"), ("GRAND", "E3m3")]
 
@@ -123,6 +126,14 @@ class TagSim:
         if saved.get("version") != 1:
             raise SimError("Unsupported tag simulator state version")
         self.cfg = saved
+        for o in self.cfg["owners"]:
+            if o["kind"] == "pid":
+                for key in ("kp", "ki", "kd", "_i", "_e"):
+                    o.pop(key, None)
+                for key, value in PID_DEFAULTS.items():
+                    o.setdefault(key, value)
+            for tag in (t for t in self.cfg["tags"] if t["owner"] == o["id"]):
+                tag["alarms"] = {k: v for k, v in tag["alarms"].items() if k in ("h", "l")}
         for tag in self.cfg["tags"]:
             self.live[tag["id"]] = self.initial_value(tag)
 
@@ -199,8 +210,11 @@ class TagSim:
         if k == "manual":
             return [("VALUE", owner.get("type", "analog"), "setpoint", owner.get("units", ""), {})]
         if k == "pid":
-            return [("SP", "analog", "setpoint", owner.get("units", ""), {}), ("OUT", "analog", "calc", "%", {}),
-                    ("AUTO", "digital", "setpoint", "", {})]
+            pts = [("SP", "analog", "setpoint", owner.get("units", ""), {}), ("OUT", "analog", "calc", "%", {}),
+                   ("AUTO", "digital", "setpoint", "", {})]
+            if owner.get("override"):
+                pts += [("OVR_SP", "analog", "setpoint", "", {}), ("OVR_ACTIVE", "digital", "calc", "", {})]
+            return pts
         if k == "feature":
             return [(key, kind, io, units, {"states": OPT_STATES} if io == "state" else {})
                     for key, kind, units, io in FEATURES[owner["feature"]]["tags"]]
@@ -282,7 +296,7 @@ class TagSim:
             if sum(o["kind"] == "pid" for o in self.cfg["owners"]) >= PID_PLANNING_LIMIT:
                 raise SimError(f"PID planning limit is {PID_PLANNING_LIMIT} loops until measured")
             n = 1 + sum(o["kind"] == "pid" for o in self.cfg["owners"])
-            owner.update(name=self.unique_owner_name(f"PID{n}"), pv=None, out=None, kp=1.0, ki=0.2, kd=0.0,
+            owner.update(name=self.unique_owner_name(f"PID{n}"), pv=None, out=None, **PID_DEFAULTS,
                          interval=1.0, reverse=False, simulate=True, units="")
         elif kind == "feature":
             feature = params.get("feature")
@@ -363,9 +377,23 @@ class TagSim:
                 self.compile_formula(params["formula"], allow_unknown=False)
                 draft["formula"] = params["formula"]
         if owner["kind"] == "pid":
-            for key in ("kp", "ki", "kd"):
-                if key in params:
-                    draft[key] = _num(params[key], key.upper(), 0, 1000)
+            limits = {"gain": ("Gain", 0, 100), "reset": ("Reset (repeats/min)", 0, 100), "rate": ("Rate (min)", 0, 60),
+                      "deadband": ("Error deadband", 0, 1e9)}
+            for key, (label, low, high) in limits.items():
+                for prefix in ("", "ovr"):
+                    name = prefix + (key[0].upper() + key[1:] if prefix else key)
+                    if name in params:
+                        draft[name] = _num(params[name], ("Override " if prefix else "") + label, low, high)
+            if "override" in params:
+                draft["override"] = bool(params["override"])
+            if "select" in params:
+                if params["select"] not in ("low", "high"):
+                    raise SimError("Override select is Low or High")
+                draft["select"] = params["select"]
+            if "ovrPv" in params:
+                draft["ovrPv"] = self.ref_or_none(params["ovrPv"], analog=True)
+            if draft["override"] and "ovrPv" in params and not isinstance(draft.get("ovrPv"), int):
+                raise SimError("Choose the override process variable")
             if "interval" in params:
                 draft["interval"] = 0.1 if float(params["interval"]) < 0.5 else 1.0
             for key in ("reverse", "simulate"):
@@ -446,7 +474,7 @@ class TagSim:
                 for k, v in list(o.get(key, {}).items()):
                     if v == tag["id"]:
                         o[key][k] = gone
-            for key in ("pv", "out"):
+            for key in ("pv", "out", "ovrPv"):
                 if o.get(key) == tag["id"]:
                     o[key] = gone
         self.cfg["tags"].remove(tag)
@@ -516,10 +544,12 @@ class TagSim:
                     tag[flag] = bool(row[flag])
             if "alarms" in row:
                 alarms = {}
-                for level in ("hh", "h", "l", "ll"):
+                for level in ("h", "l"):
                     value = row["alarms"].get(level)
                     if value not in (None, ""):
                         alarms[level] = _num(value, f'{tag["name"]} {level.upper()} alarm')
+                if "h" in alarms and "l" in alarms and alarms["l"] >= alarms["h"]:
+                    raise SimError(f'{tag["name"]}: Low alarm must be below High')
                 if tag["kind"] == "digital" and alarms:
                     raise SimError(f'{tag["name"]}: digital Tags take no analog alarm limits')
                 tag["alarms"] = alarms
@@ -550,6 +580,11 @@ class TagSim:
         if tag["io"] == "setpoint":
             tag["setValue"] = _num(value, tag["name"]) if tag["kind"] == "analog" else (1 if value in (1, "1", True, "ON") else 0)
             self.live[tag_id] = tag["setValue"]
+        elif tag["point"] == "OUT" and self.owner(tag["owner"])["kind"] == "pid":
+            owner = self.owner(tag["owner"])
+            if self.live.get(self.owner_tag(owner, "AUTO")["id"], 0):
+                raise SimError(f'{owner["name"]} is in Auto; switch to Manual to set the output')
+            self.live[tag_id] = _num(value, tag["name"], 0, 100)
         elif tag["io"] == "out":
             writer = self.output_writer(tag_id)
             if writer:
@@ -582,6 +617,8 @@ class TagSim:
                         uses.append(f'{o["name"]} {labels.get(k, k)}')
             if o.get("pv") == tag_id:
                 uses.append(f'{o["name"]} process variable')
+            if o.get("ovrPv") == tag_id:
+                uses.append(f'{o["name"]} override process variable')
             if o.get("out") == tag_id:
                 uses.append(f'{o["name"]} output')
             if o["kind"] == "calc" and tag["name"] in self.formula_names(o["formula"]):
@@ -659,8 +696,8 @@ class TagSim:
         tags = {t["id"]: t for t in self.cfg["tags"]}
         driven = set()
         for o in self.cfg["owners"]:
-            if o["kind"] == "pid" and isinstance(o.get("pv"), int) and o.get("simulate"):
-                driven.add(o["pv"])
+            if o["kind"] == "pid" and o.get("simulate"):
+                driven.update(v for v in (o.get("pv"), o.get("ovrPv") if o.get("override") else None) if isinstance(v, int))
         for t in self.cfg["tags"]:
             o = next(x for x in self.cfg["owners"] if x["id"] == t["owner"])
             if t["io"] == "in" and o["kind"] in ("m31", "modbus", "mvs") and t["id"] not in driven:
@@ -724,39 +761,76 @@ class TagSim:
             tid = self.owner_tag(o, point)["id"]
             self.live[tid] = (0.0 if reset else self.live.get(tid, 0.0)) + volume
 
+    def pid_term(self, o, prefix, key):
+        return o[prefix + key[0].upper() + key[1:]] if prefix else o[key]
+
+    def pid_error(self, o, prefix, sp, pv, pv_tag):
+        """Error in % of PV span (SP - PV, sign set by the action); zero inside the error deadband."""
+        if abs(sp - pv) <= self.pid_term(o, prefix, "deadband"):
+            return 0.0
+        span = (pv_tag["eu"][1] - pv_tag["eu"][0]) if "raw" in pv_tag else 100.0
+        error = (sp - pv) / (span or 1.0) * 100.0
+        return -error if o["reverse"] else error
+
     def tick_pid(self, o, tags, dt):
+        """Position-form PID. With override, Low or High Select of the two loop outputs drives the valve and
+        each loop's reset tracks the output actually sent, so the other loop takes over without a bump."""
         sp_tag, out_tag, auto_tag = (self.owner_tag(o, p) for p in ("SP", "OUT", "AUTO"))
         out = self.live.get(out_tag["id"], 0.0)
-        pv, ok = self.input_value(o.get("pv"), tags)
-        if not ok or not o["enabled"]:
+        auto = bool(self.live.get(auto_tag["id"], 0))
+        loops = [("", o.get("pv"), sp_tag)]
+        if o.get("override"):
+            loops.append(("ovr", o.get("ovrPv"), self.owner_tag(o, "OVR_SP")))
+        values = []
+        for prefix, ref, spt in loops:
+            pv, ok = self.input_value(ref, tags)
+            values.append((prefix, pv, ok, spt, tags.get(ref) if isinstance(ref, int) else None))
+        if not all(v[2] for v in values) or not o["enabled"]:
             self.quality[out_tag["id"]] = "BAD" if o["enabled"] else "DISABLED"
             return
-        if self.live.get(auto_tag["id"], 0):
-            pv_tag = tags[o["pv"]]
-            span = (pv_tag["eu"][1] - pv_tag["eu"][0]) if "raw" in pv_tag else 100.0
-            error = (self.live.get(sp_tag["id"], 0.0) - pv) / (span or 1.0) * 100.0
-            if o["reverse"]:
-                error = -error
-            steps = max(1, int(dt / o["interval"]))
-            h = dt / steps
-            for _ in range(steps):
-                integral = o.setdefault("_i", 0.0) + o["ki"] * error * h
-                o["_i"] = min(100.0, max(0.0, integral))
-                out = min(100.0, max(0.0, o["kp"] * error + o["_i"] - o["kd"] * (error - o.get("_e", error)) / h))
-                o["_e"] = error
+        steps = max(1, int(dt / o["interval"]))
+        h = dt / steps
+        active = 0
+        for _ in range(steps):
+            terms = []
+            for prefix, pv, _, spt, pv_tag in values:
+                gain = self.pid_term(o, prefix, "gain")
+                error = self.pid_error(o, prefix, self.live.get(spt["id"], 0.0), pv, pv_tag)
+                state = o.setdefault("_" + (prefix or "p"), {"i": out, "pv": pv})
+                span = (pv_tag["eu"][1] - pv_tag["eu"][0]) if "raw" in pv_tag else 100.0
+                slope = (pv - state["pv"]) / (span or 1.0) * 100.0 / h
+                derivative = -gain * self.pid_term(o, prefix, "rate") * 60.0 * slope * (-1 if o["reverse"] else 1)
+                if auto:
+                    state["i"] += gain * self.pid_term(o, prefix, "reset") / 60.0 * error * h
+                terms.append((gain * error + state["i"] + derivative, gain, error, derivative, state, pv))
+            if auto:
+                wanted = [t[0] for t in terms]
+                chosen = min(wanted) if o.get("select", "low") == "low" else max(wanted)
+                out = min(100.0, max(0.0, chosen))
+                active = 1 if len(terms) > 1 and wanted.index(chosen) == 1 else 0
+            for index, (total, gain, error, derivative, state, pv) in enumerate(terms):
+                if not auto or (index == active and total != out):
+                    # Manual, or the loop in control at an output limit: full tracking (bumpless, no wind-up).
+                    state["i"] = out - gain * error - derivative
+                elif index != active:
+                    # External reset feedback: the idle loop's reset follows the output sent, so its own
+                    # proportional term decides whether it wants less (Low Select) or more (High Select).
+                    state["i"] = out
+                state["pv"] = pv
         self.live[out_tag["id"]] = out
+        if o.get("override"):
+            self.live[self.owner_tag(o, "OVR_ACTIVE")["id"]] = active
         if isinstance(o.get("out"), int) and o["out"] in tags:
             self.live[o["out"]] = 4.0 + 16.0 * out / 100.0
-        if o.get("simulate") and isinstance(o.get("pv"), int):
-            pv_tag = tags[o["pv"]]
-            target = out if not o["reverse"] else 100.0 - out
-            if "raw" in pv_tag:
-                target_raw = 4.0 + 16.0 * target / 100.0
-                cur = self.live.get(pv_tag["id"], 4.0)
-                self.live[pv_tag["id"]] = cur + (target_raw - cur) * min(1.0, dt / 60.0)
-            else:
-                cur = self.live.get(pv_tag["id"], 0.0)
-                self.live[pv_tag["id"]] = cur + (target - cur) * min(1.0, dt / 60.0)
+        if o.get("simulate"):
+            # Simulated process: the primary PV follows the valve; an override PV (e.g. line pressure) rises with it.
+            for ref, target in ((o.get("pv"), out if not o["reverse"] else 100.0 - out),
+                                (o.get("ovrPv") if o.get("override") else None, 30.0 + 0.6 * out)):
+                if isinstance(ref, int) and ref in tags:
+                    pv_tag = tags[ref]
+                    goal = 4.0 + 16.0 * target / 100.0 if "raw" in pv_tag else target
+                    cur = self.live.get(ref, goal)
+                    self.live[ref] = cur + (goal - cur) * min(1.0, dt / 60.0)
 
     def tick_feature(self, o, tags, dt):
         state_t, arrivals_t = self.owner_tag(o, "STATE"), self.owner_tag(o, "ARRIVALS")
@@ -810,10 +884,10 @@ class TagSim:
         if value is None or not tag["alarms"]:
             return ""
         a = tag["alarms"]
-        for level, test in (("HH", lambda: "hh" in a and value >= a["hh"]), ("LL", lambda: "ll" in a and value <= a["ll"]),
-                            ("H", lambda: "h" in a and value >= a["h"]), ("L", lambda: "l" in a and value <= a["l"])):
-            if test():
-                return level
+        if "h" in a and value >= a["h"]:
+            return "HIGH"
+        if "l" in a and value <= a["l"]:
+            return "LOW"
         return ""
 
     def snapshot(self):
@@ -865,6 +939,12 @@ class TagSim:
         writer.writerows(self.samples)
         return out.getvalue()
 
+    def settle(self, sim_seconds):
+        """Run the simulation ahead so an example opens with its loops already at steady state."""
+        for _ in range(int(sim_seconds / (2 * SPEED))):
+            self.last_tick -= 2.0
+            self.tick()
+
     # ----- example sites -----------------------------------------------------------------------
     def load_example(self, name):
         self.blank()
@@ -898,12 +978,16 @@ class TagSim:
                                                      "arrival": ids["PLUNGER_ARRIVAL"], "flow": self.owner_tag(flow, "RATE")["id"]},
                                           "outputs": {"valve": ids["WELL_VALVE"]}, "running": True})
             pid = self.add_owner({"kind": "pid"})
-            self.change_owner(pid["id"], {"pv": ids["SEP_LEVEL"], "out": ids["CHOKE_POS"]})
+            self.change_owner(pid["id"], {"pv": ids["SEP_LEVEL"], "out": ids["CHOKE_POS"], "override": True,
+                                          "ovrPv": ids["LINE_PRESS"], "select": "low"})
+            ovr_sp = self.owner_tag(pid, "OVR_SP")
+            ovr_sp["setValue"] = self.live[ovr_sp["id"]] = 6000.0
             self.live[self.owner_tag(pid, "AUTO")["id"]] = 1
             self.owner_tag(pid, "AUTO")["setValue"] = 1
             self.owner_tag(self.owner(opt["id"]), "STATE")["dash"] = True
-            self.cfg["tags"][self.cfg["tags"].index(self.find_name("TUBING_PRESS"))]["alarms"] = {"hh": 9000.0, "h": 8000.0}
+            self.cfg["tags"][self.cfg["tags"].index(self.find_name("TUBING_PRESS"))]["alarms"] = {"h": 8000.0, "l": 500.0}
             self.add_owner({"kind": "calc", "name": "CASING_TUBING_DIFF", "formula": "CASING_PRESS - TUBING_PRESS", "units": "kPa"})
+            self.settle(1200)
             self.event("Example site: plunger-lift well")
         elif name == "hub":
             for i in range(5):

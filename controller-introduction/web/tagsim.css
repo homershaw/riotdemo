@@ -21,7 +21,7 @@
 .tcTable tr[data-dirty]{background:var(--panel2)}
 .tcUnits{width:70px}.tcReg{width:78px}.tcFormula{width:260px;max-width:100%}
 .tcRange{display:flex;align-items:center;gap:4px;white-space:nowrap}.tcRange input{width:68px}
-.tcAlarms{white-space:nowrap}.tcAlarms label{display:inline-flex;flex-direction:column;font-size:10px;color:var(--muted);margin-right:2px}.tcAlarms input{width:58px}
+.tcAlarms{white-space:nowrap}.tcAlarms label{display:inline-flex;flex-direction:column;font-size:10px;color:var(--muted);margin-right:2px}.tcAlarms input{width:72px}
 .valueCell{font-variant-numeric:tabular-nums;white-space:nowrap}
 .tcAdd{display:grid;gap:8px;margin-top:6px}
 .tcAdd form{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:6px 0;font-size:13px}
@@ -30,6 +30,7 @@
 .tcFields label,.tcForm label{display:flex;align-items:center;gap:5px;font-size:12.5px}
 .tcFields input[type=number]{width:58px}
 .tcForm{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.tcForm input[type=number]{width:96px}
 .tcForm fieldset{flex-basis:100%;display:flex;flex-wrap:wrap;gap:4px 14px;border:1px solid var(--line);border-radius:6px}
 .tcForm .tcSave{flex-basis:100%;position:static;background:none}
 .tcMeter{display:flex;align-items:center;gap:10px;margin:6px 0 10px}

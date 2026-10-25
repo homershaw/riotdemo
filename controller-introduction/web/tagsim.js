@@ -46,8 +46,8 @@ function tagsPage(){
  const q=new URLSearchParams(location.search),owner=q.get('owner')||'';
  const rows=S.tags.map(t=>{
   const rng=t.raw?'<span class="tcRange">'+t.raw[0]+'-'+t.raw[1]+' '+esc(t.rawUnits)+' = <input data-f="eu0" type="number" step="any" value="'+t.eu[0]+'"> to <input data-f="eu1" type="number" step="any" value="'+t.eu[1]+'"></span><small class="muted" data-raw="'+t.id+'">'+(t.rawValue??'--')+' mA</small>':'<span class="muted">'+(t.ownerKind==='modbus'||t.ownerKind==='mvs'?'from device':'--')+'</span>';
-  const al=t.kind==='analog'?['hh','h','l','ll'].map(l=>'<input data-f="'+l+'" type="number" step="any" placeholder="'+l.toUpperCase()+'" aria-label="'+l.toUpperCase()+' alarm" value="'+(t.alarms[l]??'')+'">').join(''):'<span class="muted">--</span>';
-  const set=t.io==='setpoint'||(t.io==='out'&&!t.writer)?'<button type="button" data-set="'+t.id+'">Set</button>':t.writer?'<small class="muted">by '+esc(t.writer)+'</small>':'';
+  const al=t.kind==='analog'?[['h','High'],['l','Low']].map(([l,n])=>'<input data-f="'+l+'" type="number" step="any" placeholder="'+n+'" aria-label="'+n+' alarm" value="'+(t.alarms[l]??'')+'">').join(''):'<span class="muted">--</span>';
+  const set=t.io==='setpoint'||(t.io==='out'&&!t.writer)||(t.ownerKind==='pid'&&t.point==='OUT')?'<button type="button" data-set="'+t.id+'">Set</button>':t.writer?'<small class="muted">by '+esc(t.writer)+'</small>':'';
   return '<tr data-id="'+t.id+'" data-owner="'+t.owner+'"'+(owner&&String(t.owner)!==owner?' hidden':'')+'>'+
    '<td class="nameCell"><input data-f="name" value="'+esc(t.name)+'" aria-label="Name"><small class="muted">#'+t.id+' · <a href="/tc/owner?id='+t.owner+'">'+esc(t.ownerName)+'</a>.'+esc(t.point)+(t.description?' · '+esc(t.description):'')+'</small></td>'+
    '<td data-label="Value" class="valueCell">'+live(t)+' '+set+'</td>'+
@@ -62,7 +62,7 @@ function tagsPage(){
  return '<div class="tcHead"><h1>Tags <small class="muted">'+S.tags.length+' / '+S.measure.tagLimit+'</small></h1>'+
   '<input id="tcSearch" placeholder="Search name, owner or use" aria-label="Search Tags"><select id="tcOwnerFilter" aria-label="Owner"><option value="">All owners</option>'+S.owners.map(o=>'<option value="'+o.id+'"'+(String(o.id)===owner?' selected':'')+'>'+esc(o.name)+'</option>').join('')+'</select></div>'+
   '<p class="tcNote">Every value is a Tag owned by the device or function that created it. Rename, scale, log, show, alarm and map it here; one Save applies all changed rows. Add Tags by adding an owner in <a href="/tc/devices">Devices</a>, <a href="/tc/flow">Flow and Control</a> or <a href="/tc/features">Features</a>.</p>'+
-  (S.tags.length?'<form id="tcTags"><div class="tcSave"><button id="tcSaveTags" disabled>Save changes</button><button type="button" id="tcReload">Discard</button><span id="tcDirty" role="status">No unsaved changes</span></div><div class="tableWrap"><table class="tcTable"><thead><tr><th>Name / owner</th><th>Value</th><th>Units</th><th>Scaling (raw = engineering)</th><th>Log</th><th>Dash</th><th>Alarms HH H L LL</th><th>Modbus</th><th>Used by</th></tr></thead><tbody>'+rows+'</tbody></table></div></form>':'<p class="card">No Tags yet. Add a device in <a href="/tc/devices">Devices</a> or load an example site above.</p>');
+  (S.tags.length?'<form id="tcTags"><div class="tcSave"><button id="tcSaveTags" disabled>Save changes</button><button type="button" id="tcReload">Discard</button><span id="tcDirty" role="status">No unsaved changes</span></div><div class="tableWrap"><table class="tcTable"><thead><tr><th>Name / owner</th><th>Value</th><th>Units</th><th>Scaling (raw = engineering)</th><th>Log</th><th>Dash</th><th>Alarms High / Low</th><th>Modbus</th><th>Used by</th></tr></thead><tbody>'+rows+'</tbody></table></div></form>':'<p class="card">No Tags yet. Add a device in <a href="/tc/devices">Devices</a> or load an example site above.</p>');
 }
 
 function devicesPage(){
@@ -90,7 +90,9 @@ function flowPage(){
   '<div class="tcHead"><h2>Flow runs <small class="muted">'+flows.length+' / 6</small></h2><button type="button" data-addkind="flow"'+(flows.length>=6?' disabled':'')+'>Add Flow run</button></div>'+
   (flows.length?'<table class="tcTable"><thead><tr><th>Run</th><th>DP / static / temperature</th><th>Rate</th><th>Hour</th><th>Day (06:00)</th><th>Grand</th></tr></thead><tbody>'+flows.map(o=>'<tr><td>'+ownerLink(o)+'</td><td><small>'+['dp','sp','pt'].map(k=>o.inputs[k]?refText(o.inputs[k]):'manual '+o.manual[k]).join('<br>')+'</small></td><td>'+v(o,'RATE')+'</td><td>'+v(o,'HOUR')+'</td><td>'+v(o,'DAY')+'</td><td>'+v(o,'GRAND')+'</td></tr>').join('')+'</tbody></table>':'<p class="muted">No Flow runs.</p>')+
   '<div class="tcHead"><h2>PID loops <small class="muted">'+pids.length+' / '+S.measure.pidLimit+' (planning limit until measured)</small></h2><button type="button" data-addkind="pid"'+(pids.length>=S.measure.pidLimit?' disabled':'')+'>Add PID loop</button></div>'+
-  (pids.length?'<table class="tcTable"><thead><tr><th>Loop</th><th>Process variable</th><th>Setpoint</th><th>Output</th><th>Mode</th></tr></thead><tbody>'+pids.map(o=>{const sp=S.tags.find(t=>t.owner===o.id&&t.point==='SP'),au=S.tags.find(t=>t.owner===o.id&&t.point==='AUTO');return '<tr><td>'+ownerLink(o)+'</td><td><small>'+refText(o.pv)+'</small></td><td>'+live(sp)+' <button type="button" data-set="'+sp.id+'">Set</button></td><td>'+v(o,'OUT')+'<br><small>to '+refText(o.out)+'</small></td><td><button type="button" data-auto="'+au.id+'" data-on="'+(au.value?0:1)+'">'+(au.value?'Auto: switch to Manual':'Manual: switch to Auto')+'</button></td></tr>';}).join('')+'</tbody></table>':'<p class="muted">No PID loops.</p>');
+  (pids.length?'<table class="tcTable"><thead><tr><th>Loop</th><th>Process variable</th><th>Setpoint</th><th>Override</th><th>Output</th><th>Mode</th></tr></thead><tbody>'+pids.map(o=>{const tg=p=>S.tags.find(t=>t.owner===o.id&&t.point===p),sp=tg('SP'),au=tg('AUTO'),out=tg('OUT'),osp=tg('OVR_SP'),act=tg('OVR_ACTIVE');
+   const ovr=o.override&&osp?'<small>'+refText(o.ovrPv)+'<br>SP '+live(osp)+' <button type="button" data-set="'+osp.id+'">Set</button><br>'+(o.select==='low'?'Low':'High')+' Select · in control: <b data-ovr="'+act.id+'">'+(act.value?'OVERRIDE':'primary')+'</b></small>':'<small class="muted">off</small>';
+   return '<tr><td>'+ownerLink(o)+'<br><small class="muted">G '+o.gain+' · R '+o.reset+'/min · D '+o.rate+' min · DB '+o.deadband+'</small></td><td><small>'+refText(o.pv)+'</small></td><td>'+live(sp)+' <button type="button" data-set="'+sp.id+'">Set</button></td><td>'+ovr+'</td><td>'+v(o,'OUT')+(au.value?'':' <button type="button" data-set="'+out.id+'">Set</button>')+'<br><small>to '+refText(o.out)+'</small></td><td><button type="button" data-auto="'+au.id+'" data-on="'+(au.value?0:1)+'">'+(au.value?'Auto: switch to Manual':'Manual: switch to Auto')+'</button></td></tr>';}).join('')+'</tbody></table>':'<p class="muted">No PID loops.</p>');
 }
 
 function featuresPage(){
@@ -109,7 +111,11 @@ function ownerPage(){
  if(o.kind==='modbus')f+='<fieldset><legend>Points (a ticked point has a Tag)</legend>'+S.profiles[o.profile].points.map(p=>'<label><input type="checkbox" name="sel" value="'+esc(p.key)+'"'+(o.selected.includes(p.key)?' checked':'')+'> '+esc(p.key)+' <small class="muted">'+esc(p.label)+(p.units?' '+esc(p.units):'')+'</small></label>').join('')+'</fieldset>';
  if(o.kind==='flow')f+=['dp','sp','pt'].map(k=>'<label>'+INPUT_LABEL[k]+' <select name="in_'+k+'">'+tagOptions(o.inputs[k],t=>t.kind==='analog'&&t.owner!==o.id)+'</select></label><label>Manual '+k.toUpperCase()+' <input name="man_'+k+'" type="number" step="any" value="'+o.manual[k]+'"></label>').join('');
  if(o.kind==='calc')f+='<label>Formula <input name="formula" class="tcFormula" value="'+esc(o.formula)+'"></label>';
- if(o.kind==='pid')f+='<label>Process variable <select name="pv">'+tagOptions(o.pv,t=>t.kind==='analog'&&t.owner!==o.id&&t.io!=='out')+'</select></label><label>Output to <select name="out">'+tagOptions(o.out,t=>t.kind==='analog'&&t.io==='out'&&(!t.writer||t.writer===o.name))+'</select></label>'+['kp','ki','kd'].map(k=>'<label>'+k.toUpperCase()+' <input name="'+k+'" type="number" step="any" value="'+o[k]+'"></label>').join('')+'<label>Interval <select name="interval"><option value="1"'+(o.interval>=1?' selected':'')+'>1 s</option><option value="0.1"'+(o.interval<1?' selected':'')+'>100 ms</option></select></label><label><input type="checkbox" name="reverse"'+(o.reverse?' checked':'')+'> Reverse acting</label><label><input type="checkbox" name="simulate"'+(o.simulate?' checked':'')+'> Simulated process (output moves the PV)</label>';
+ if(o.kind==='pid')f+='<label>Process variable <select name="pv">'+tagOptions(o.pv,t=>t.kind==='analog'&&t.owner!==o.id&&t.io!=='out')+'</select></label><label>Output to <select name="out">'+tagOptions(o.out,t=>t.kind==='analog'&&t.io==='out'&&(!t.writer||t.writer===o.name))+'</select></label>'+pidTerms(o,'')+'<label>Interval <select name="interval"><option value="1"'+(o.interval>=1?' selected':'')+'>1 s</option><option value="0.1"'+(o.interval<1?' selected':'')+'>100 ms</option></select></label><label><input type="checkbox" name="reverse"'+(o.reverse?' checked':'')+'> Reverse acting</label><label><input type="checkbox" name="simulate"'+(o.simulate?' checked':'')+'> Simulated process (output moves the PV)</label>'+
+  '<fieldset><legend><label><input type="checkbox" name="override"'+(o.override?' checked':'')+'> Override control</label></legend>'+
+  '<label>Override process variable <select name="ovrPv">'+tagOptions(o.ovrPv,t=>t.kind==='analog'&&t.owner!==o.id&&t.io!=='out')+'</select></label>'+
+  '<label>Select <select name="select"><option value="low"'+(o.select==='low'?' selected':'')+'>Low Select (lower output wins)</option><option value="high"'+(o.select==='high'?' selected':'')+'>High Select (higher output wins)</option></select></label>'+
+  pidTerms(o,'ovr')+'<small class="muted">The override setpoint is the '+esc(o.name)+'.OVR_SP Tag. Both loops run every scan; the selected output drives the valve and the other loop tracks it, so either can take over without a bump.</small></fieldset>';
  if(o.kind==='feature'){
   f+=Object.keys(o.inputs).map(k=>'<label>'+INPUT_LABEL[k]+' <select name="in_'+k+'">'+tagOptions(o.inputs[k],t=>(DIGITAL_INPUTS.has(k)?t.kind==='digital':t.kind==='analog')&&t.owner!==o.id)+'</select></label>').join('');
   f+=Object.keys(o.outputs).map(k=>'<label>'+INPUT_LABEL[k]+' <select name="out_'+k+'">'+tagOptions(o.outputs[k],t=>t.kind==='digital'&&t.io==='out'&&(!t.writer||t.writer===o.name))+'</select></label>').join('');
@@ -121,6 +127,10 @@ function ownerPage(){
   '<p><button type="button" data-remove="'+o.id+'">Remove '+esc(o.name)+'</button></p><div id="tcRemove"></div>';
 }
 
+function pidTerms(o,p){
+ const k=n=>p?p+n[0].toUpperCase()+n.slice(1):n;
+ return [['gain','Gain','%/%'],['reset','Reset','repeats/min'],['rate','Rate','min'],['deadband','Error deadband','PV units']].map(([n,l,u])=>'<label>'+l+' <input name="'+k(n)+'" type="number" min="0" step="any" value="'+o[k(n)]+'"> <small class="muted">'+u+'</small></label>').join('');
+}
 function loggerPage(){
  const logged=S.tags.filter(t=>t.log);
  return '<h1>Logger</h1><form id="tcLogger" class="card tcForm"><label><input type="checkbox" name="enabled"'+(S.logger.enabled?' checked':'')+'> Logging on</label><label>Interval (s) <input name="interval" type="number" min="10" max="3600" value="'+S.logger.interval+'"></label><div class="tcSave"><button>Save</button></div></form>'+
@@ -163,6 +173,7 @@ function updateLive(){
   for(const el of document.querySelectorAll('[data-u="'+t.id+'"]'))el.textContent=t.usedBy.join(', ')||'-';
   for(const el of document.querySelectorAll('[data-raw="'+t.id+'"]'))el.textContent=(t.rawValue??'--')+' mA';
  }
+ for(const el of document.querySelectorAll('[data-ovr]')){const t=S.tags.find(x=>x.id===Number(el.dataset.ovr));if(t)el.textContent=t.value?'OVERRIDE':'primary';}
  const scan=$('tcScan');if(scan)scan.textContent=S.measure.scanMsAvg+' ms avg / '+S.measure.scanMsMax+' ms max';
  const n=$('tcSamples');if(n)n.textContent=S.samples;
 }
@@ -184,13 +195,13 @@ function rowDraft(tr){
  const t=S.tags.find(x=>x.id===Number(tr.dataset.id)),g=f=>tr.querySelector('[data-f="'+f+'"]');
  const row={id:t.id,name:g('name').value.trim(),units:g('units').value,log:g('log').checked,dash:g('dash').checked,modbus:g('modbus').value};
  if(t.raw)row.eu=[g('eu0').value,g('eu1').value];
- if(t.kind==='analog'){row.alarms={};for(const l of ['hh','h','l','ll'])row.alarms[l]=g(l).value;}
+ if(t.kind==='analog'){row.alarms={};for(const l of ['h','l'])row.alarms[l]=g(l).value;}
  return [t,row];
 }
 function rowChanged(t,row){
  if(row.name!==t.name||row.units!==t.units||row.log!==t.log||row.dash!==t.dash||String(row.modbus)!==String(t.modbus??''))return true;
  if(row.eu&&(Number(row.eu[0])!==t.eu[0]||Number(row.eu[1])!==t.eu[1]))return true;
- if(row.alarms)for(const l of ['hh','h','l','ll'])if(String(row.alarms[l])!==String(t.alarms[l]??''))return true;
+ if(row.alarms)for(const l of ['h','l'])if(String(row.alarms[l])!==String(t.alarms[l]??''))return true;
  return false;
 }
 function wireTags(){
@@ -215,7 +226,7 @@ page.addEventListener('submit',async e=>{
   if(o.kind==='modbus')p.selected=fd.getAll('sel');
   if(o.kind==='flow'){p.inputs={};p.manual={};for(const k of ['dp','sp','pt']){p.inputs[k]=fd.get('in_'+k);p.manual[k]=fd.get('man_'+k);}}
   if(o.kind==='calc')p.formula=fd.get('formula');
-  if(o.kind==='pid'){for(const k of ['kp','ki','kd','interval','pv','out'])p[k]=fd.get(k);p.reverse=fd.has('reverse');p.simulate=fd.has('simulate');}
+  if(o.kind==='pid'){for(const k of ['gain','reset','rate','deadband','ovrGain','ovrReset','ovrRate','ovrDeadband','interval','pv','out','ovrPv','select'])p[k]=fd.get(k);p.reverse=fd.has('reverse');p.simulate=fd.has('simulate');p.override=fd.has('override');}
   if(o.kind==='feature'){p.inputs={};p.outputs={};for(const k of Object.keys(o.inputs))p.inputs[k]=fd.get('in_'+k);for(const k of Object.keys(o.outputs))p.outputs[k]=fd.get('out_'+k);}
   try{let d=await act({op:'changeOwner',owner:id,params:p},true);
    if(d.needsConfirm){if(!confirm('This change removes Tags that are in use:\n\n'+d.removed.map(t=>t.name+': '+t.uses.join(', ')).join('\n')+'\n\nTheir uses become "Tag removed". Continue?'))return;d=await act({op:'changeOwner',owner:id,params:p,confirm:true},true);}

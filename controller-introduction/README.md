@@ -81,10 +81,10 @@ loop, Calculation; 39 Tags), *Gathering hub* (240 of 256 Tags) or *Blank control
 | Page | What it shows |
 | --- | --- |
 | Dashboard | Tags with Dash ticked, and every owner |
-| Tags | The one Tag table: rename, units, 4-20 mA scaling, Log, Dash, HH/H/L/LL, Modbus address, Used by; one Save for all changed rows |
+| Tags | The one Tag table: rename, units, 4-20 mA scaling, Log, Dash, High/Low alarms, Modbus address, Used by; one Save for all changed rows |
 | Devices | Add an M31 rack, Modbus device (profile), MVS, manual value or calculation; Remove shows what uses each Tag first |
 | Device page | Channel counts or selected points (Tags follow), simulated comms loss, Replace device (Tags keep ID and uses) |
-| Flow and Control | Flow runs (illustrative rate, hour, 06:00 day, grand) and PID loops with a simulated process |
+| Flow and Control | Flow runs (illustrative rate, hour, 06:00 day, grand) and PID loops: Gain, Reset (repeats/min), Rate (min), error deadband, Auto/Manual with bumpless transfer, and Override control by Low or High Select (FloBoss style), with a simulated process |
 | Features | Tubing Optimizer v5 / v8.00 as add-on features with their own Tags; simplified cycle, not the real program |
 | Logger | Logging on/off and interval; CSV keyed by Tag ID |
 | Maintenance | Measurements: Tags used of 256, memory estimate, owners, PID loops, scan time; audit log |
