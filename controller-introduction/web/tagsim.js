@@ -24,7 +24,9 @@ function fmt(t){
  return (a>=1000?v.toFixed(0):a>=100?v.toFixed(1):a>=1?v.toFixed(2):v.toFixed(3))+(t.units?' '+t.units:'');
 }
 function qual(t){return t.quality==='GOOD'?(t.alarm?'<span class="bad">'+t.alarm+'</span>':'<span class="good">GOOD</span>'):'<span class="bad">'+esc(t.quality)+'</span>';}
-function live(t){return '<span data-v="'+t.id+'">'+esc(fmt(t))+'</span> <small data-q="'+t.id+'">'+qual(t)+'</small>';}
+function live(t){return '<span data-v="'+t.id+'">'+esc(fmt(t))+'</span> <small data-q="'+t.id+'">'+qual(t)+'</small><b class="tcMan" data-man="'+t.id+'"'+(t.inManual?'':' hidden')+'>MAN</b>';}
+function manualBanner(){return S.inManual?'<p class="tcBanner"><b>'+S.inManual+' Tag'+(S.inManual>1?'s':'')+' in Manual.</b> They read a typed value instead of the live reading; see <a href="/tc/tags">Tags</a>.</p>':'';}
+function actionLabel(o){return o.reverse?'Direct (output rises as PV rises)':'Reverse (output rises as PV falls)';}
 function ownerLink(o){return '<a href="/tc/owner?id='+o.id+'">'+esc(o.name)+'</a>';}
 function tagsOf(id){return S.tags.filter(t=>t.owner===id);}
 function tagOptions(sel,filter){
@@ -35,10 +37,13 @@ function tagOptions(sel,filter){
 function refText(ref){if(!ref)return '<span class="muted">not selected</span>';if(typeof ref==='object')return '<span class="bad">Tag removed ('+esc(ref.removed)+')</span>';const t=S.tags.find(x=>x.id===ref);return t?esc(t.name)+' = '+live(t):'?';}
 
 // ---------- pages ----------
+function trendWin(){let v='15';try{v=localStorage.getItem('riotSimTrendWin')||'15'}catch(_){}return v;}
+function pidFace(o){const tg=p=>S.tags.find(t=>t.owner===o.id&&t.point===p),sp=tg('SP'),out=tg('OUT'),au=tg('AUTO'),act=tg('OVR_ACTIVE'),pv=typeof o.pv==='number'?S.tags.find(t=>t.id===o.pv):null;
+ return '<article class="card"><small class="muted">PID loop</small><div class="tcName">'+ownerLink(o)+'</div><div class="tcFace">PV <b>'+(pv?live(pv):'--')+'</b> · SP <b>'+(sp?live(sp):'--')+'</b><br>Output <b>'+(out?live(out):'--')+'</b> · <b data-mode="'+o.id+'">'+(au&&au.value?(act&&act.value?'AUTO-OVR':'AUTO'):'MAN')+'</b></div><svg class="spark" data-trend="PID'+o.id+'" viewBox="0 0 120 24" preserveAspectRatio="none"></svg></article>';}
 function dashboard(){
- const dash=S.tags.filter(t=>t.dash);
- return '<div class="tcHead"><h1>Dashboard</h1><a class="rowEdit" href="/tc/tags">Configure</a></div>'+
-  (dash.length?'<div class="tcCards">'+dash.map(t=>'<article class="card"><small class="muted">'+esc(t.ownerName)+'</small><div class="tcName">'+esc(t.name)+'</div><div class="tcBig">'+live(t)+'</div></article>').join('')+'</div>':'<p class="card">No Tags are on the Dashboard. Tick <b>Dash</b> on rows in <a href="/tc/tags">Tags</a>.</p>')+
+ const dash=S.tags.filter(t=>t.dash),loops=S.owners.filter(o=>o.kind==='pid'&&o.dash);
+ return '<div class="tcHead"><h1>Dashboard</h1><label class="tcTrendPick">Trends <select id="tcTrendWin"><option value="0">Off</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label><a class="rowEdit" href="/tc/tags">Configure</a></div>'+manualBanner()+
+  (dash.length||loops.length?'<div class="tcCards">'+dash.map(t=>'<article class="card"><small class="muted">'+esc(t.ownerName)+'</small><div class="tcName">'+esc(t.name)+'</div><div class="tcBig">'+live(t)+'</div><svg class="spark" data-trend="'+t.id+'" viewBox="0 0 120 24" preserveAspectRatio="none"></svg></article>').join('')+loops.map(pidFace).join('')+'</div>':'<p class="card">No Tags are on the Dashboard. Tick <b>Dash</b> on rows in <a href="/tc/tags">Tags</a>, or <b>On Dashboard</b> on a PID loop.</p>')+
   '<h2>Owners</h2><div class="tcCards">'+S.owners.map(o=>'<article class="card"><small class="muted">'+esc(KIND[o.kind])+'</small><div class="tcName">'+ownerLink(o)+'</div><div>'+o.tagCount+' Tags · '+(o.enabled?(o.online===false?'<span class="bad">OFFLINE</span>':'<span class="good">ENABLED</span>'):'<span class="bad">DISABLED</span>')+'</div></article>').join('')+'</div>';
 }
 
@@ -50,7 +55,7 @@ function tagsPage(){
   const set=t.io==='setpoint'||(t.io==='out'&&!t.writer)||(t.ownerKind==='pid'&&t.point==='OUT')?'<button type="button" data-set="'+t.id+'">Set</button>':t.writer?'<small class="muted">by '+esc(t.writer)+'</small>':'';
   return '<tr data-id="'+t.id+'" data-owner="'+t.owner+'"'+(owner&&String(t.owner)!==owner?' hidden':'')+'>'+
    '<td class="nameCell"><input data-f="name" value="'+esc(t.name)+'" aria-label="Name"><small class="muted">#'+t.id+' · <a href="/tc/owner?id='+t.owner+'">'+esc(t.ownerName)+'</a>.'+esc(t.point)+(t.description?' · '+esc(t.description):'')+'</small></td>'+
-   '<td data-label="Value" class="valueCell">'+live(t)+' '+set+'</td>'+
+   '<td data-label="Value" class="valueCell">'+live(t)+' '+set+(t.ownerKind==='calc'||t.ownerKind==='manual'?'':'<br><label class="tcManTick"><input type="checkbox" data-f="man"'+(t.inManual?' checked':'')+'> Manual</label> <input data-f="manv" class="tcNum" type="number" step="any" placeholder="live" aria-label="Manual value" value="'+(t.inManual?t.value:'')+'"><small class="muted" data-live="'+t.id+'">'+(t.inManual?' live '+(t.live===null?'--':esc(fmt({...t,value:t.live}))):'')+'</small>')+'</td>'+
    '<td data-label="Units"><input data-f="units" class="tcUnits" value="'+esc(t.units)+'" maxlength="11"></td>'+
    '<td data-label="Scaling">'+rng+'</td>'+
    '<td data-label="Log"><input type="checkbox" data-f="log"'+(t.log?' checked':'')+' aria-label="Log"></td>'+
@@ -61,7 +66,7 @@ function tagsPage(){
  }).join('');
  return '<div class="tcHead"><h1>Tags <small class="muted">'+S.tags.length+' / '+S.measure.tagLimit+'</small></h1>'+
   '<input id="tcSearch" placeholder="Search name, owner or use" aria-label="Search Tags"><select id="tcOwnerFilter" aria-label="Owner"><option value="">All owners</option>'+S.owners.map(o=>'<option value="'+o.id+'"'+(String(o.id)===owner?' selected':'')+'>'+esc(o.name)+'</option>').join('')+'</select></div>'+
-  '<p class="tcNote">Every value is a Tag owned by the device or function that created it. Rename, scale, log, show, alarm and map it here; one Save applies all changed rows. Add Tags by adding an owner in <a href="/tc/devices">Devices</a>, <a href="/tc/flow">Flow and Control</a> or <a href="/tc/features">Features</a>.</p>'+
+  manualBanner()+'<p class="tcNote">Every value is a Tag owned by the device or function that created it. Tick <b>Manual</b> on a Tag to hold a typed value while a transmitter is calibrated or replaced (leave the value blank to start from the live reading). Rename, scale, log, show, alarm and map it here; one Save applies all changed rows. Add Tags by adding an owner in <a href="/tc/devices">Devices</a>, <a href="/tc/flow">Flow and Control</a> or <a href="/tc/features">Features</a>.</p>'+
   (S.tags.length?'<form id="tcTags"><div class="tcSave"><button id="tcSaveTags" disabled>Save changes</button><button type="button" id="tcReload">Discard</button><span id="tcDirty" role="status">No unsaved changes</span></div><div class="tableWrap"><table class="tcTable"><thead><tr><th>Name / owner</th><th>Value</th><th>Units</th><th>Scaling (raw = engineering)</th><th>Log</th><th>Dash</th><th>Alarms High / Low</th><th>Modbus</th><th>Used by</th></tr></thead><tbody>'+rows+'</tbody></table></div></form>':'<p class="card">No Tags yet. Add a device in <a href="/tc/devices">Devices</a> or load an example site above.</p>');
 }
 
@@ -86,13 +91,13 @@ function ownerCard(o){
 function flowPage(){
  const flows=S.owners.filter(o=>o.kind==='flow'),pids=S.owners.filter(o=>o.kind==='pid');
  const v=(o,p)=>{const t=S.tags.find(x=>x.owner===o.id&&x.point===p);return t?live(t):'--';};
- return '<h1>Flow and Control</h1><p class="tcNote">Flow runs and PID loops are scheduled calculations. Each creates its own Tags and picks its inputs from the Tag table. Flow results here are illustrative, not AGA-3.</p>'+
+ return '<h1>Flow and Control</h1><p class="tcNote">Flow runs and PID loops are scheduled calculations. Each creates its own Tags and picks its inputs from the Tag table. Flow results here are illustrative, not AGA-3. Day totals roll at the system contract hour ('+String(S.contractHour).padStart(2,'0')+':00, set in <a href="/tc/maintenance">Maintenance</a>). A PID loop whose PV goes BAD holds its output.</p>'+
   '<div class="tcHead"><h2>Flow runs <small class="muted">'+flows.length+' / 6</small></h2><button type="button" data-addkind="flow"'+(flows.length>=6?' disabled':'')+'>Add Flow run</button></div>'+
-  (flows.length?'<table class="tcTable"><thead><tr><th>Run</th><th>DP / static / temperature</th><th>Rate</th><th>Hour</th><th>Day (06:00)</th><th>Grand</th></tr></thead><tbody>'+flows.map(o=>'<tr><td>'+ownerLink(o)+'</td><td><small>'+['dp','sp','pt'].map(k=>o.inputs[k]?refText(o.inputs[k]):'manual '+o.manual[k]).join('<br>')+'</small></td><td>'+v(o,'RATE')+'</td><td>'+v(o,'HOUR')+'</td><td>'+v(o,'DAY')+'</td><td>'+v(o,'GRAND')+'</td></tr>').join('')+'</tbody></table>':'<p class="muted">No Flow runs.</p>')+
+  (flows.length?'<table class="tcTable"><thead><tr><th>Run</th><th>DP / static / temperature</th><th>Rate</th><th>Hour</th><th>Day ('+String(S.contractHour).padStart(2,'0')+':00)</th><th>Grand</th></tr></thead><tbody>'+flows.map(o=>'<tr><td>'+ownerLink(o)+'</td><td><small>'+['dp','sp','pt'].map(k=>o.inputs[k]?refText(o.inputs[k]):'manual '+o.manual[k]).join('<br>')+'</small></td><td>'+v(o,'RATE')+'</td><td>'+v(o,'HOUR')+'</td><td>'+v(o,'DAY')+'</td><td>'+v(o,'GRAND')+'</td></tr>').join('')+'</tbody></table>':'<p class="muted">No Flow runs.</p>')+
   '<div class="tcHead"><h2>PID loops <small class="muted">'+pids.length+' / '+S.measure.pidLimit+' (planning limit until measured)</small></h2><button type="button" data-addkind="pid"'+(pids.length>=S.measure.pidLimit?' disabled':'')+'>Add PID loop</button></div>'+
   (pids.length?'<table class="tcTable"><thead><tr><th>Loop</th><th>Process variable</th><th>Setpoint</th><th>Override</th><th>Output</th><th>Mode</th></tr></thead><tbody>'+pids.map(o=>{const tg=p=>S.tags.find(t=>t.owner===o.id&&t.point===p),sp=tg('SP'),au=tg('AUTO'),out=tg('OUT'),osp=tg('OVR_SP'),act=tg('OVR_ACTIVE');
    const ovr=o.override&&osp?'<small>'+refText(o.ovrPv)+'<br>SP '+live(osp)+' <button type="button" data-set="'+osp.id+'">Set</button><br>'+(o.select==='low'?'Low':'High')+' Select · in control: <b data-ovr="'+act.id+'">'+(act.value?'OVERRIDE':'primary')+'</b></small>':'<small class="muted">off</small>';
-   return '<tr><td>'+ownerLink(o)+'<br><small class="muted">G '+o.gain+' · R '+o.reset+'/min · D '+o.rate+' min · DB '+o.deadband+'</small></td><td><small>'+refText(o.pv)+'</small></td><td>'+live(sp)+' <button type="button" data-set="'+sp.id+'">Set</button></td><td>'+ovr+'</td><td>'+v(o,'OUT')+(au.value?'':' <button type="button" data-set="'+out.id+'">Set</button>')+'<br><small>to '+refText(o.out)+'</small></td><td><button type="button" data-auto="'+au.id+'" data-on="'+(au.value?0:1)+'">'+(au.value?'Auto: switch to Manual':'Manual: switch to Auto')+'</button></td></tr>';}).join('')+'</tbody></table>':'<p class="muted">No PID loops.</p>');
+   return '<tr><td>'+ownerLink(o)+'<br><small class="muted">G '+o.gain+' · R '+o.reset+'/min · D '+o.rate+' min · DB '+o.deadband+'<br>'+(o.reverse?'Direct':'Reverse')+(o.dash?' · on Dashboard':'')+'</small></td><td><small>'+refText(o.pv)+'</small></td><td>'+live(sp)+' <button type="button" data-set="'+sp.id+'">Set</button></td><td>'+ovr+'</td><td>'+v(o,'OUT')+(au.value?'':' <button type="button" data-set="'+out.id+'">Set</button>')+'<br><small>to '+refText(o.out)+'</small></td><td><button type="button" data-auto="'+au.id+'" data-on="'+(au.value?0:1)+'">'+(au.value?'Auto: switch to Manual':'Manual: switch to Auto')+'</button></td></tr>';}).join('')+'</tbody></table>':'<p class="muted">No PID loops.</p>');
 }
 
 function featuresPage(){
@@ -107,11 +112,12 @@ function ownerPage(){
  if(!o)return '<h1>Owner not found</h1><p><a href="/tc/devices">Devices</a></p>';
  let f='<label>Name <input name="name" value="'+esc(o.name)+'" maxlength="35"></label><label><input type="checkbox" name="enabled"'+(o.enabled?' checked':'')+'> Enabled</label>';
  if(['m31','modbus','mvs'].includes(o.kind))f+='<label><input type="checkbox" name="online"'+(o.online?' checked':'')+'> Communicating (simulate)</label>';
- if(o.kind==='m31')f+=['ai','ao','di','do'].map(k=>'<label>'+k.toUpperCase()+' <input name="'+k+'" type="number" min="0" max="16" value="'+o[k]+'"></label>').join('');
+ if(o.kind==='m31'){f+=['ai','ao','di','do'].map(k=>'<label>'+k.toUpperCase()+' <input name="'+k+'" type="number" min="0" max="16" value="'+o[k]+'"></label>').join('');
+  f+='<fieldset><legend>Simulate a wire off (no signal: 0 mA, the Tag reads BAD)</legend>'+Array.from({length:o.ai},(_,i)=>'AI'+(i+1)).map(a=>'<label><input type="checkbox" name="nosig" value="'+a+'"'+((o.noSignal||[]).includes(a)?' checked':'')+'> '+a+'</label>').join('')+'</fieldset>';}
  if(o.kind==='modbus')f+='<fieldset><legend>Points (a ticked point has a Tag)</legend>'+S.profiles[o.profile].points.map(p=>'<label><input type="checkbox" name="sel" value="'+esc(p.key)+'"'+(o.selected.includes(p.key)?' checked':'')+'> '+esc(p.key)+' <small class="muted">'+esc(p.label)+(p.units?' '+esc(p.units):'')+'</small></label>').join('')+'</fieldset>';
  if(o.kind==='flow')f+=['dp','sp','pt'].map(k=>'<label>'+INPUT_LABEL[k]+' <select name="in_'+k+'">'+tagOptions(o.inputs[k],t=>t.kind==='analog'&&t.owner!==o.id)+'</select></label><label>Manual '+k.toUpperCase()+' <input name="man_'+k+'" type="number" step="any" value="'+o.manual[k]+'"></label>').join('');
  if(o.kind==='calc')f+='<label>Formula <input name="formula" class="tcFormula" value="'+esc(o.formula)+'"></label>';
- if(o.kind==='pid')f+='<label>Process variable <select name="pv">'+tagOptions(o.pv,t=>t.kind==='analog'&&t.owner!==o.id&&t.io!=='out')+'</select></label><label>Output to <select name="out">'+tagOptions(o.out,t=>t.kind==='analog'&&t.io==='out'&&(!t.writer||t.writer===o.name))+'</select></label>'+pidTerms(o,'')+'<label>Interval <select name="interval"><option value="1"'+(o.interval>=1?' selected':'')+'>1 s</option><option value="0.1"'+(o.interval<1?' selected':'')+'>100 ms</option></select></label><label><input type="checkbox" name="reverse"'+(o.reverse?' checked':'')+'> Reverse acting</label><label><input type="checkbox" name="simulate"'+(o.simulate?' checked':'')+'> Simulated process (output moves the PV)</label>'+
+ if(o.kind==='pid')f+='<label>Process variable <select name="pv">'+tagOptions(o.pv,t=>t.kind==='analog'&&t.owner!==o.id&&t.io!=='out')+'</select></label><label>Output to <select name="out">'+tagOptions(o.out,t=>t.kind==='analog'&&t.io==='out'&&(!t.writer||t.writer===o.name))+'</select></label>'+pidTerms(o,'')+'<label>Interval <select name="interval"><option value="1"'+(o.interval>=1?' selected':'')+'>1 s</option><option value="0.1"'+(o.interval<1?' selected':'')+'>100 ms</option></select></label><label>Action <select name="action"><option value="direct"'+(o.reverse?' selected':'')+'>Direct: output rises as PV rises (PV above SP opens)</option><option value="reverse"'+(o.reverse?'':' selected')+'>Reverse: output rises as PV falls (PV below SP opens)</option></select></label><label><input type="checkbox" name="dash"'+(o.dash?' checked':'')+'> On Dashboard (faceplate and PV trend)</label><label><input type="checkbox" name="simulate"'+(o.simulate?' checked':'')+'> Simulated process (output moves the PV)</label>'+
   '<fieldset><legend><label><input type="checkbox" name="override"'+(o.override?' checked':'')+'> Override control</label></legend>'+
   '<label>Override process variable <select name="ovrPv">'+tagOptions(o.ovrPv,t=>t.kind==='analog'&&t.owner!==o.id&&t.io!=='out')+'</select></label>'+
   '<label>Select <select name="select"><option value="low"'+(o.select==='low'?' selected':'')+'>Low Select (lower output wins)</option><option value="high"'+(o.select==='high'?' selected':'')+'>High Select (higher output wins)</option></select></label>'+
@@ -149,18 +155,19 @@ function maintenancePage(){
   '<tr><td>PID loops</td><td>'+m.pidLoops+' / '+m.pidLimit+'</td><td class="muted">planning limit until measured at 1 s and 100 ms on a JC and a Nano</td></tr>'+
   '<tr><td>Logged Tags</td><td>'+m.logged+'</td><td></td></tr><tr><td>Dashboard Tags</td><td>'+m.dashboard+'</td><td></td></tr><tr><td>Alarmed Tags</td><td>'+m.alarmed+'</td><td></td></tr><tr><td>Modbus-mapped Tags</td><td>'+m.modbus+'</td><td></td></tr>'+
   '<tr><td>Scan time</td><td><span id="tcScan">'+m.scanMsAvg+' ms avg / '+m.scanMsMax+' ms max</span></td><td class="muted">measured in this simulator on this PC; the controller measures its own scan</td></tr>'+
-  '</tbody></table></section><section class="card"><h2>Audit log</h2>'+S.events.slice().reverse().map(e=>'<p class="tcEvent"><span class="muted">'+esc(e.time)+'</span> '+esc(e.message)+'</p>').join('')+'</section>';
+  '</tbody></table></section><section class="card"><h2>System</h2><form id="tcSystem" class="tcForm"><label>Contract hour <select name="hour">'+Array.from({length:24},(_,h)=>'<option value="'+h+'"'+(h===S.contractHour?' selected':'')+'>'+String(h).padStart(2,'0')+':00</option>').join('')+'</select></label><small class="muted">Start of the gas day for Flow day totals (Alberta standard 06:00).</small><div class="tcSave"><button>Save</button></div></form></section><section class="card"><h2>Audit log</h2>'+S.events.slice().reverse().map(e=>'<p class="tcEvent"><span class="muted">'+esc(e.time)+'</span> '+esc(e.message)+'</p>').join('')+'</section>';
 }
 
 // ---------- render and live refresh ----------
 function render(){
  const p=location.pathname;
+ setTimeout(()=>{const w=$('tcTrendWin');if(w)w.value=trendWin();drawSparks();},0);
  page.innerHTML=p==='/tc/tags'?tagsPage():p==='/tc/devices'?devicesPage():p==='/tc/owner'?ownerPage():p==='/tc/flow'?flowPage():p==='/tc/features'?featuresPage():p==='/tc/logger'?loggerPage():p==='/tc/maintenance'?maintenancePage():dashboard();
  if(p==='/tc/tags')wireTags();
 }
 function structureKey(){
  const p=location.pathname;
- const base=[p,location.search,S.owners.map(o=>JSON.stringify(o.inputs||'')+o.id+o.name+o.tagCount+o.enabled+o.online+o.running+(o.pv||'')+(o.out||'')),S.tags.length,S.logger.enabled];
+ const base=[p,location.search,S.owners.map(o=>JSON.stringify(o.inputs||'')+o.id+o.name+o.tagCount+o.enabled+o.online+o.running+(o.pv||'')+(o.out||'')+o.dash+o.reverse+(o.noSignal||[]).join()),S.tags.length,S.logger.enabled,S.contractHour,S.inManual,S.tags.map(t=>t.inManual?t.id:'').join()];
  if(p==='/tc/tags'||p==='/tc/owner')base.push(S.tags.map(t=>[t.id,t.name,t.units,t.log,t.dash,JSON.stringify(t.alarms),t.modbus,t.eu].join()).join('|'));
  else base.push(S.tags.map(t=>t.id+t.name+t.dash+t.log).join('|'));
  if(p==='/tc/maintenance')base.push(S.events.length);
@@ -172,8 +179,11 @@ function updateLive(){
   for(const el of document.querySelectorAll('[data-q="'+t.id+'"]'))el.innerHTML=qual(t);
   for(const el of document.querySelectorAll('[data-u="'+t.id+'"]'))el.textContent=t.usedBy.join(', ')||'-';
   for(const el of document.querySelectorAll('[data-raw="'+t.id+'"]'))el.textContent=(t.rawValue??'--')+' mA';
+  for(const el of document.querySelectorAll('[data-man="'+t.id+'"]'))el.hidden=!t.inManual;
+  for(const el of document.querySelectorAll('[data-live="'+t.id+'"]'))el.textContent=t.inManual?' live '+(t.live===null?'--':fmt({...t,value:t.live})):'';
  }
  for(const el of document.querySelectorAll('[data-ovr]')){const t=S.tags.find(x=>x.id===Number(el.dataset.ovr));if(t)el.textContent=t.value?'OVERRIDE':'primary';}
+ for(const el of document.querySelectorAll('[data-mode]')){const o=S.owners.find(x=>x.id===Number(el.dataset.mode));if(!o)continue;const au=S.tags.find(t=>t.owner===o.id&&t.point==='AUTO'),act=S.tags.find(t=>t.owner===o.id&&t.point==='OVR_ACTIVE');el.textContent=au&&au.value?(act&&act.value?'AUTO-OVR':'AUTO'):'MAN';}
  const scan=$('tcScan');if(scan)scan.textContent=S.measure.scanMsAvg+' ms avg / '+S.measure.scanMsMax+' ms max';
  const n=$('tcSamples');if(n)n.textContent=S.samples;
 }
@@ -190,15 +200,39 @@ async function refresh(force){
  finally{busy=false;}
 }
 
+// ---------- Dashboard trends: 5 s samples kept for 60 simulated minutes; wide windows show average + low/high ----------
+let trendData=null;
+function drawSparks(){
+ const on=trendWin()!=='0';
+ for(const svg of document.querySelectorAll('svg.spark')){
+  svg.style.display=on?'':'none';if(!on||!trendData)continue;
+  const t=trendData.series.find(x=>String(x.key)===svg.dataset.trend);if(!t){svg.innerHTML='';continue;}
+  const all=t.avg.concat(t.lo||[],t.hi||[]).filter(v=>v!==null);if(!all.length){svg.innerHTML='';continue;}
+  let mn=Math.min(...all),mx=Math.max(...all);if(mx-mn<1e-9){mn-=1;mx+=1;}
+  const n=t.avg.length,X=i=>n>1?i*120/(n-1):60,Y=v=>22-(v-mn)/(mx-mn)*20;let band='',line='',pen=false;
+  t.avg.forEach((v,i)=>{if(t.lo&&t.lo[i]!==null&&t.hi[i]>t.lo[i])band+='M'+X(i).toFixed(1)+' '+Y(t.hi[i]).toFixed(1)+'V'+Y(t.lo[i]).toFixed(1);
+   if(v===null){pen=false;return;}line+=(pen?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1);pen=true;});
+  svg.innerHTML='<title>'+trendData.minutes+' min: low '+mn.toPrecision(5)+', high '+mx.toPrecision(5)+'</title>'+(band?'<path d="'+band+'" stroke="currentColor" stroke-opacity=".28" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke"/>':'')+'<path d="'+line+'" stroke="currentColor" stroke-width="1.5" fill="none" vector-effect="non-scaling-stroke"/>';
+ }
+}
+async function refreshTrends(){
+ if(location.pathname!=='/tc'||trendWin()==='0'){drawSparks();return;}
+ try{trendData=await act({op:'trends',minutes:Number(trendWin())},true);drawSparks();}catch(_){}
+}
+document.addEventListener('change',e=>{if(e.target.id==='tcTrendWin'){try{localStorage.setItem('riotSimTrendWin',e.target.value)}catch(_){}trendData=null;refreshTrends();}});
+
 // ---------- Tags table editing ----------
 function rowDraft(tr){
  const t=S.tags.find(x=>x.id===Number(tr.dataset.id)),g=f=>tr.querySelector('[data-f="'+f+'"]');
  const row={id:t.id,name:g('name').value.trim(),units:g('units').value,log:g('log').checked,dash:g('dash').checked,modbus:g('modbus').value};
+ if(g('man')){row.man=g('man').checked;row.manv=g('manv').value.trim();}
  if(t.raw)row.eu=[g('eu0').value,g('eu1').value];
  if(t.kind==='analog'){row.alarms={};for(const l of ['h','l'])row.alarms[l]=g(l).value;}
  return [t,row];
 }
+function manualChanged(t,row){return 'man' in row&&(row.man!==!!t.inManual||(row.man&&row.manv!==''&&Number(row.manv)!==t.value));}
 function rowChanged(t,row){
+ if(manualChanged(t,row))return true;
  if(row.name!==t.name||row.units!==t.units||row.log!==t.log||row.dash!==t.dash||String(row.modbus)!==String(t.modbus??''))return true;
  if(row.eu&&(Number(row.eu[0])!==t.eu[0]||Number(row.eu[1])!==t.eu[1]))return true;
  if(row.alarms)for(const l of ['h','l'])if(String(row.alarms[l])!==String(t.alarms[l]??''))return true;
@@ -209,7 +243,8 @@ function wireTags(){
  const count=()=>{let n=0;for(const tr of form.querySelectorAll('tbody tr')){const [t,row]=rowDraft(tr);const c=rowChanged(t,row);if(c){tr.dataset.dirty='1';n++;}else delete tr.dataset.dirty;}$('tcSaveTags').disabled=!n;$('tcDirty').textContent=n?n+' row'+(n>1?'s':'')+' changed':'No unsaved changes';};
  form.addEventListener('input',count);form.addEventListener('change',count);
  form.addEventListener('submit',async e=>{e.preventDefault();const rows=[];for(const tr of form.querySelectorAll('tbody tr[data-dirty]'))rows.push(rowDraft(tr)[1]);
-  try{await act({op:'saveTags',rows});for(const tr of form.querySelectorAll('[data-dirty]'))delete tr.dataset.dirty;structure='';await refresh(true);$('tcDirty').textContent='Saved '+rows.length+' row'+(rows.length>1?'s':'');}catch(err){$('tcDirty').textContent='Not saved: '+err.message;$('tcDirty').className='bad';}});
+  try{const man=[];for(const tr of form.querySelectorAll('tbody tr[data-dirty]')){const [t,row]=rowDraft(tr);if(manualChanged(t,row))man.push({tag:t.id,on:row.man,value:row.man?row.manv:''});}
+   await act({op:'saveTags',rows:rows.map(r=>{const c={...r};delete c.man;delete c.manv;return c;})});for(const m of man)await act({op:'manual',...m},true);for(const tr of form.querySelectorAll('[data-dirty]'))delete tr.dataset.dirty;structure='';await refresh(true);$('tcDirty').textContent='Saved '+rows.length+' row'+(rows.length>1?'s':'');}catch(err){$('tcDirty').textContent='Not saved: '+err.message;$('tcDirty').className='bad';}});
  $('tcReload').onclick=()=>{for(const tr of form.querySelectorAll('[data-dirty]'))delete tr.dataset.dirty;structure='';refresh(true);};
  const filter=()=>{const q=$('tcSearch').value.toLowerCase(),o=$('tcOwnerFilter').value;for(const tr of form.querySelectorAll('tbody tr')){const t=S.tags.find(x=>x.id===Number(tr.dataset.id));const hay=(t.name+' '+t.ownerName+' '+t.point+' '+t.usedBy.join(' ')).toLowerCase();tr.hidden=!!(o&&String(t.owner)!==o)||!!(q&&!hay.includes(q));}};
  $('tcSearch').oninput=filter;$('tcOwnerFilter').onchange=()=>{history.replaceState(null,'',$('tcOwnerFilter').value?'/tc/tags?owner='+$('tcOwnerFilter').value:'/tc/tags');filter();};
@@ -222,15 +257,16 @@ page.addEventListener('submit',async e=>{
   try{await act({op:'addOwner',params:p});structure='';refresh(true);}catch(err){say(err.message,'bad');}}
  if(f.id==='tcOwner'){e.preventDefault();const id=Number(new URLSearchParams(location.search).get('id')),o=S.owners.find(x=>x.id===id),fd=new FormData(f),p={name:fd.get('name'),enabled:fd.has('enabled')};
   if(['m31','modbus','mvs'].includes(o.kind))p.online=fd.has('online');
-  if(o.kind==='m31')for(const k of ['ai','ao','di','do'])p[k]=fd.get(k);
+  if(o.kind==='m31'){for(const k of ['ai','ao','di','do'])p[k]=fd.get(k);p.noSignal=fd.getAll('nosig');}
   if(o.kind==='modbus')p.selected=fd.getAll('sel');
   if(o.kind==='flow'){p.inputs={};p.manual={};for(const k of ['dp','sp','pt']){p.inputs[k]=fd.get('in_'+k);p.manual[k]=fd.get('man_'+k);}}
   if(o.kind==='calc')p.formula=fd.get('formula');
-  if(o.kind==='pid'){for(const k of ['gain','reset','rate','deadband','ovrGain','ovrReset','ovrRate','ovrDeadband','interval','pv','out','ovrPv','select'])p[k]=fd.get(k);p.reverse=fd.has('reverse');p.simulate=fd.has('simulate');p.override=fd.has('override');}
+  if(o.kind==='pid'){for(const k of ['gain','reset','rate','deadband','ovrGain','ovrReset','ovrRate','ovrDeadband','interval','pv','out','ovrPv','select'])p[k]=fd.get(k);p.reverse=fd.get('action')==='direct';p.dash=fd.has('dash');p.simulate=fd.has('simulate');p.override=fd.has('override');}
   if(o.kind==='feature'){p.inputs={};p.outputs={};for(const k of Object.keys(o.inputs))p.inputs[k]=fd.get('in_'+k);for(const k of Object.keys(o.outputs))p.outputs[k]=fd.get('out_'+k);}
   try{let d=await act({op:'changeOwner',owner:id,params:p},true);
    if(d.needsConfirm){if(!confirm('This change removes Tags that are in use:\n\n'+d.removed.map(t=>t.name+': '+t.uses.join(', ')).join('\n')+'\n\nTheir uses become "Tag removed". Continue?'))return;d=await act({op:'changeOwner',owner:id,params:p,confirm:true},true);}
    $('tcOwnerMsg').textContent='Saved';$('tcOwnerMsg').className='good';structure='';refresh(true);}catch(err){$('tcOwnerMsg').textContent='Not saved: '+err.message;$('tcOwnerMsg').className='bad';}}
+ if(f.id==='tcSystem'){e.preventDefault();try{await act({op:'contractHour',hour:new FormData(f).get('hour')});structure='';refresh(true);}catch(err){say(err.message,'bad');}}
  if(f.id==='tcLogger'){e.preventDefault();const fd=new FormData(f);try{await act({op:'logger',enabled:fd.has('enabled'),interval:fd.get('interval')});structure='';refresh(true);}catch(err){say(err.message,'bad');}}
 });
 page.addEventListener('click',async e=>{
@@ -258,3 +294,4 @@ const theme=$('theme');
 try{const saved=localStorage.getItem('riotIntroTheme');if(saved){document.documentElement.dataset.theme=saved;theme.value=saved;}}catch(_){}
 theme.onchange=()=>{document.documentElement.dataset.theme=theme.value;try{localStorage.setItem('riotIntroTheme',theme.value);}catch(_){}};
 refresh(true);setInterval(()=>refresh(false),2000);
+refreshTrends();setInterval(refreshTrends,3000);

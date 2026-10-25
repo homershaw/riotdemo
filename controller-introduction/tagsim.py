@@ -61,11 +61,15 @@ FEATURES = {
                       ("SHUTIN_SP", "analog", "s", "setpoint"), ("OPEN_SP", "analog", "s", "setpoint"),
                       ("AFTERFLOW_SP", "analog", "s", "setpoint"), ("CRIT_RATE", "analog", "E3m3/d", "in")]},
 }
-# PID terms as on a FloBoss: Gain (%/%), Reset (repeats/min), Rate (min), Error deadband (PV units).
+# PID terms: Gain (%/%), Reset (repeats/min), Rate (min), Error deadband (PV units). "reverse" True is shown as
+# Direct (output rises as the PV rises), False as Reverse, the standard naming the controller uses.
 PID_DEFAULTS = {"gain": 1.0, "reset": 0.5, "rate": 0.0, "deadband": 0.0, "override": False, "ovrPv": None,
                 "ovrGain": 1.0, "ovrReset": 0.5, "ovrRate": 0.0, "ovrDeadband": 0.0, "select": "low"}
 OPT_STATES = {0: "Stopped", 1: "Shut-in", 2: "Open", 3: "Afterflow"}
 FLOW_POINTS = [("RATE", "E3m3/d"), ("HOUR", "E3m3"), ("DAY", "E3m3"), ("GRAND", "E3m3")]
+TREND_STEP = 5.0                 # simulated seconds between trend samples (as on the controller)
+TREND_POINTS = 720               # 60 simulated minutes
+TREND_SEND = 120                 # most points per series sent; wider windows send average + low/high
 
 
 class SimError(ValueError):
@@ -112,7 +116,7 @@ class TagSim:
     # ----- configuration -------------------------------------------------------------------
     def blank(self):
         self.cfg = {"version": 1, "nextTagId": 1, "nextOwnerId": 1, "owners": [], "tags": [],
-                    "logger": {"enabled": False, "interval": 60}, "events": []}
+                    "logger": {"enabled": False, "interval": 60}, "events": [], "contractHour": 6}
         self.live = {}
         self.samples = []
         self.started = time.monotonic()
@@ -121,11 +125,14 @@ class TagSim:
         self.next_sample = 0.0
         self.scan_ms = []
         self.quality = {}
+        self.trend = {}              # Tag ID or "PID<n>" -> recent values (Dashboard trends), not saved
+        self.next_trend = 0.0
 
     def load(self, saved):
         if saved.get("version") != 1:
             raise SimError("Unsupported tag simulator state version")
         self.cfg = saved
+        self.cfg.setdefault("contractHour", 6)
         for o in self.cfg["owners"]:
             if o["kind"] == "pid":
                 for key in ("kp", "ki", "kd", "_i", "_e"):
@@ -361,6 +368,11 @@ class TagSim:
                     draft[k] = _int(params[k], k.upper(), 0, 16)
             if not any(draft[k] for k in ("ai", "ao", "di", "do")):
                 raise SimError("At least one channel count must be above 0")
+            if "noSignal" in params:
+                wanted = [str(p) for p in params["noSignal"]]
+                if any(not re.fullmatch(r"AI\d{1,2}", p) or int(p[2:]) > draft["ai"] for p in wanted):
+                    raise SimError("No signal applies to the rack's active AI channels")
+                draft["noSignal"] = wanted
         if owner["kind"] == "modbus" and "selected" in params:
             keys = [p[0] for p in PROFILES[owner["profile"]]["points"]]
             if not set(params["selected"]) <= set(keys) or not params["selected"]:
@@ -386,6 +398,8 @@ class TagSim:
                         draft[name] = _num(params[name], ("Override " if prefix else "") + label, low, high)
             if "override" in params:
                 draft["override"] = bool(params["override"])
+            if "dash" in params:
+                draft["dash"] = bool(params["dash"])
             if "select" in params:
                 if params["select"] not in ("low", "high"):
                     raise SimError("Override select is Low or High")
@@ -601,6 +615,76 @@ class TagSim:
             raise SimError(f'{tag["name"]} is an input; its owner sets its value')
         self.event(f'{tag["name"]} set to {value}')
 
+    def set_manual(self, tag_id, on, value=None):
+        """Put a source Tag in Manual (calibration, transmitter work): it reads the value as GOOD and everything
+        that uses it carries on; the live reading underneath is kept. Blank value = start from the live reading."""
+        tag = self.tag(tag_id)
+        owner = self.owner(tag["owner"])
+        if owner["kind"] in ("calc", "manual"):
+            raise SimError("Calculations and Manual values are already set by hand")
+        if on:
+            if value in (None, ""):
+                live, _ = self.eng_live(tag)
+                value = live if live is not None else 0.0
+            value = _num(value, f'{tag["name"]} manual value')
+            if tag["kind"] == "digital":
+                value = 1 if value else 0
+            tag["manual"] = value
+            self.event(f'{tag["name"]} in Manual at {value:g} {tag["units"]}'.rstrip())
+        elif tag.pop("manual", None) is not None:
+            live, _ = self.eng_live(tag)
+            self.event(f'{tag["name"]} back to live' + (f' ({live:.4g} {tag["units"]})'.rstrip() if live is not None else ''))
+
+    def trend_keys(self):
+        """What the Dashboard shows: Tags with Dash ticked, and PID loops on the Dashboard (their PV)."""
+        keys = {t["id"]: t for t in self.cfg["tags"] if t["dash"]}
+        for o in self.cfg["owners"]:
+            if o["kind"] == "pid" and o.get("dash") and isinstance(o.get("pv"), int):
+                keys[f'PID{o["id"]}'] = o
+        return keys
+
+    def sample_trends(self, tags):
+        keys = self.trend_keys()
+        for key in list(self.trend):
+            if key not in keys:
+                del self.trend[key]
+        for key, item in keys.items():
+            if isinstance(key, str):
+                value, q = self.eng(tags[item["pv"]]) if item["pv"] in tags else (None, "BAD")
+            else:
+                value, q = self.eng(item)
+            series = self.trend.setdefault(key, [])
+            series.append(value if q in ("GOOD", "STALE") else None)
+            del series[:-TREND_POINTS]
+
+    def trends(self, minutes):
+        """Each Dashboard series over the window: raw samples up to 120, else average/low/high per bucket."""
+        minutes = _int(minutes, "Trend window", 5, 60)
+        if minutes not in (5, 15, 30, 60):
+            raise SimError("Trend window is 5, 15, 30 or 60 minutes")
+        want = int(minutes * 60 / TREND_STEP)
+        bucket = -(-want // TREND_SEND)
+        buckets = -(-want // bucket)
+        out = []
+        for key, series in self.trend.items():
+            recent = series[-want:]
+            avg, lo, hi = [], [], []
+            pad = buckets - -(-len(recent) // bucket)
+            for b in range(buckets):
+                if b < pad:
+                    avg.append(None); lo.append(None); hi.append(None)
+                    continue
+                end = len(recent) - (buckets - 1 - b) * bucket
+                chunk = [v for v in recent[max(0, end - bucket):end] if v is not None]
+                avg.append(round(sum(chunk) / len(chunk), 4) if chunk else None)
+                lo.append(round(min(chunk), 4) if chunk else None)
+                hi.append(round(max(chunk), 4) if chunk else None)
+            item = {"key": key, "avg": avg}
+            if bucket > 1:
+                item.update(lo=lo, hi=hi)
+            out.append(item)
+        return {"ok": True, "minutes": minutes, "stepSec": TREND_STEP, "bucket": bucket, "series": out}
+
     # ----- references ----------------------------------------------------------------------
     def used_by(self, tag_id):
         uses = []
@@ -665,7 +749,13 @@ class TagSim:
 
     # ----- live values ---------------------------------------------------------------------
     def eng(self, tag):
-        """Engineering value of a Tag (scaled for raw-range Tags) and its quality."""
+        """Engineering value and quality; a Tag in Manual reads its manual value as GOOD."""
+        if tag.get("manual") is not None:
+            return tag["manual"], "GOOD"
+        return self.eng_live(tag)
+
+    def eng_live(self, tag):
+        """Engineering value of a Tag (scaled for raw-range Tags) and its quality, ignoring Manual."""
         if tag["id"] not in self.live:
             return None, "BAD"
         owner = next((o for o in self.cfg["owners"] if o["id"] == tag["owner"]), None)
@@ -700,12 +790,17 @@ class TagSim:
                 driven.update(v for v in (o.get("pv"), o.get("ovrPv") if o.get("override") else None) if isinstance(v, int))
         for t in self.cfg["tags"]:
             o = next(x for x in self.cfg["owners"] if x["id"] == t["owner"])
+            if t["id"] in driven and "raw" in t and t["point"] not in o.get("noSignal", []) and not 3.5 <= self.live.get(t["id"], 0) <= 21.5:
+                self.live[t["id"]] = self.random.uniform(7.0, 17.0)   # wire back on a loop's simulated PV
             if t["io"] == "in" and o["kind"] in ("m31", "modbus", "mvs") and t["id"] not in driven:
                 v = self.live.get(t["id"], 0)
                 if t["kind"] == "digital":
                     if self.random.random() < 0.002 * dt and o["kind"] == "m31":
                         self.live[t["id"]] = 1 - int(v)
+                elif "raw" in t and t["point"] in o.get("noSignal", []):
+                    self.live[t["id"]] = 0.0              # wire off: 0 mA, outside 3.5-21.5 mA, reads BAD
                 elif "raw" in t:
+                    v = v if 4.0 <= v <= 20.0 else self.random.uniform(7.0, 17.0)   # wire back on
                     self.live[t["id"]] = min(19.5, max(4.5, v + self.random.gauss(0, 0.03) * math.sqrt(dt)))
                 else:
                     base = float(t.get("base", 0.0))
@@ -717,11 +812,19 @@ class TagSim:
                 self.tick_pid(o, tags, dt)
             elif o["kind"] == "feature":
                 self.tick_feature(o, tags, dt)
+        for o in self.cfg["owners"]:              # a wire off wins over any simulated process
+            if o["kind"] == "m31" and o.get("noSignal"):
+                for t in self.tags_of(o["id"]):
+                    if t["point"] in o["noSignal"]:
+                        self.live[t["id"]] = 0.0
         for o in self.cfg["owners"]:
             if o["kind"] == "calc":
                 self.tick_calc(o)
         self.scan_ms.append((time.perf_counter() - start) * 1000)
         del self.scan_ms[:-50]
+        if self.sim_seconds >= self.next_trend:
+            self.sample_trends(tags)
+            self.next_trend = self.sim_seconds + TREND_STEP
         if self.cfg["logger"]["enabled"] and self.sim_seconds >= self.next_sample:
             for t in self.cfg["tags"]:
                 if t["log"]:
@@ -755,9 +858,10 @@ class TagSim:
         self.live[rate_tag["id"]] = rate
         volume = rate * dt / 86400.0
         hour_prev = int((self.sim_seconds - dt) // 3600)
-        day_prev = int((self.sim_seconds - dt - 6 * 3600) // 86400)       # contract hour 06:00
+        ch = self.cfg.get("contractHour", 6) * 3600                      # system contract hour
+        day_prev = int((self.sim_seconds - dt - ch) // 86400)
         for point, reset in (("HOUR", int(self.sim_seconds // 3600) != hour_prev),
-                             ("DAY", int((self.sim_seconds - 6 * 3600) // 86400) != day_prev), ("GRAND", False)):
+                             ("DAY", int((self.sim_seconds - ch) // 86400) != day_prev), ("GRAND", False)):
             tid = self.owner_tag(o, point)["id"]
             self.live[tid] = (0.0 if reset else self.live.get(tid, 0.0)) + volume
 
@@ -830,6 +934,8 @@ class TagSim:
                     pv_tag = tags[ref]
                     goal = 4.0 + 16.0 * target / 100.0 if "raw" in pv_tag else target
                     cur = self.live.get(ref, goal)
+                    if "raw" in pv_tag and not 3.5 <= cur <= 21.5:
+                        cur = goal                        # wire back on: the transmitter reads again
                     self.live[ref] = cur + (goal - cur) * min(1.0, dt / 60.0)
 
     def tick_feature(self, o, tags, dt):
@@ -896,19 +1002,23 @@ class TagSim:
         tags = []
         for t in self.cfg["tags"]:
             value, q = self.eng(t)
+            live_value, live_q = self.eng_live(t)
             raw = self.live.get(t["id"]) if "raw" in t else None
             row = {k: v for k, v in t.items() if k not in ("base",)}
             row.update(value=None if value is None else round(value, 4), quality=q, raw=t.get("raw"),
                        rawValue=None if raw is None else round(raw, 3), owner=t["owner"], ownerName=owners[t["owner"]]["name"],
                        ownerKind=owners[t["owner"]]["kind"], usedBy=self.used_by(t["id"]), alarm=self.alarm_state(t, value),
-                       writer=(self.output_writer(t["id"]) or {}).get("name"))
+                       writer=(self.output_writer(t["id"]) or {}).get("name"), inManual=t.get("manual") is not None,
+                       live=None if live_value is None else round(live_value, 4), liveQuality=live_q)
             tags.append(row)
         counts = {}
         for t in self.cfg["tags"]:
             kind = owners[t["owner"]]["kind"]
             counts[kind] = counts.get(kind, 0) + 1
         scan = sorted(self.scan_ms)
-        return {"ok": True, "simulated": True, "time": self.clock(), "owners": [self.owner_view(o) for o in self.cfg["owners"]],
+        return {"ok": True, "simulated": True, "time": self.clock(), "contractHour": self.cfg.get("contractHour", 6),
+                "inManual": sum(t.get("manual") is not None for t in self.cfg["tags"]),
+                "owners": [self.owner_view(o) for o in self.cfg["owners"]],
                 "tags": tags, "logger": self.cfg["logger"], "samples": len(self.samples), "events": self.cfg["events"][-40:],
                 "profiles": {k: {"name": v["name"], "points": [{"key": p[0], "label": p[1], "kind": p[2], "units": p[3]} for p in v["points"]]}
                              for k, v in PROFILES.items()},
@@ -1005,7 +1115,7 @@ class TagSim:
             before = copy.deepcopy((self.cfg, self.live, self.samples, self.sim_seconds, self.next_sample))
             try:
                 result = self.apply(body) or {"ok": True}
-                if result.get("ok", True) and body.get("op") not in ("removePreview", "replacePreview"):
+                if result.get("ok", True) and body.get("op") not in ("removePreview", "replacePreview", "trends"):
                     self.persist()
                 return result
             except (SimError, OSError, KeyError, TypeError, ValueError):
@@ -1042,5 +1152,14 @@ class TagSim:
             return None
         if op == "example":
             self.load_example(body.get("name"))
+            return None
+        if op == "manual":
+            self.set_manual(int(body["tag"]), bool(body.get("on")), body.get("value"))
+            return None
+        if op == "trends":
+            return self.trends(body.get("minutes", 15))
+        if op == "contractHour":
+            self.cfg["contractHour"] = _int(body.get("hour"), "Contract hour", 0, 23)
+            self.event(f'System contract hour {self.cfg["contractHour"]:02d}:00')
             return None
         raise SimError("Unknown action")

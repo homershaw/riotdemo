@@ -194,6 +194,91 @@ class ModelTests(unittest.TestCase):
         self.assertTrue(all(r.endswith("SIMULATED") for r in rows[1:]))
         self.assertGreater(len(rows), 5)
 
+    def run_for(self, sim_seconds):
+        for _ in range(int(sim_seconds / 20)):
+            self.sim.last_tick -= 2.0
+            self.sim.tick()
+
+    def test_manual_holds_a_value_keeps_live_and_feeds_consumers(self):
+        self.sim.load_example("plunger")
+        casing = self.named("CASING_PRESS")
+        live_before, _ = self.sim.eng_live(casing)
+        self.sim.action({"op": "manual", "tag": casing["id"], "on": True, "value": "1500"})
+        self.assertEqual(self.sim.eng(casing), (1500.0, "GOOD"))
+        diff = self.named("CASING_TUBING_DIFF")
+        self.run_for(40)
+        tubing, _ = self.sim.eng(self.named("TUBING_PRESS"))
+        self.assertAlmostEqual(self.sim.eng(diff)[0], 1500.0 - tubing, delta=abs(tubing) * 0.01 + 1)
+        row = next(t for t in self.sim.snapshot()["tags"] if t["id"] == casing["id"])
+        self.assertTrue(row["inManual"])
+        self.assertIsNotNone(row["live"])
+        self.assertEqual(self.sim.snapshot()["inManual"], 1)
+        self.sim.action({"op": "manual", "tag": casing["id"], "on": False})
+        self.assertNotIn("manual", self.sim.tag(casing["id"]))
+        self.assertTrue(any("in Manual at 1500" in e["message"] for e in self.sim.cfg["events"]))
+
+    def test_manual_blank_starts_from_live_and_calc_is_refused(self):
+        self.sim.load_example("plunger")
+        tubing = self.named("TUBING_PRESS")
+        live, _ = self.sim.eng_live(tubing)
+        self.sim.action({"op": "manual", "tag": tubing["id"], "on": True, "value": ""})
+        self.assertAlmostEqual(self.sim.eng(tubing)[0], live)
+        with self.assertRaises(SimError):
+            self.sim.action({"op": "manual", "tag": self.named("CASING_TUBING_DIFF")["id"], "on": True, "value": "5"})
+
+    def test_wire_off_reads_bad_and_pid_holds_its_output(self):
+        self.sim.load_example("plunger")
+        m31 = next(o for o in self.sim.cfg["owners"] if o["kind"] == "m31")
+        pid = next(o for o in self.sim.cfg["owners"] if o["kind"] == "pid")
+        out_tag = self.sim.owner_tag(pid, "OUT")
+        self.sim.action({"op": "changeOwner", "owner": m31["id"], "params": {"noSignal": ["AI4"]}})   # SEP_LEVEL, the PV
+        self.run_for(20)
+        self.assertEqual(self.sim.eng(self.named("SEP_LEVEL"))[1], "BAD")
+        held = self.sim.live[out_tag["id"]]
+        self.run_for(200)
+        self.assertEqual(self.sim.live[out_tag["id"]], held)
+        self.sim.action({"op": "changeOwner", "owner": m31["id"], "params": {"noSignal": []}})
+        self.run_for(20)
+        self.assertEqual(self.sim.eng(self.named("SEP_LEVEL"))[1], "GOOD")
+        with self.assertRaises(SimError):
+            self.sim.action({"op": "changeOwner", "owner": m31["id"], "params": {"noSignal": ["AI99"]}})
+
+    def test_contract_hour_sets_the_flow_day(self):
+        self.sim.load_example("plunger")
+        self.sim.action({"op": "contractHour", "hour": 8})
+        self.assertEqual(self.sim.cfg["contractHour"], 8)
+        with self.assertRaises(SimError):
+            self.sim.action({"op": "contractHour", "hour": 24})
+        flow = next(o for o in self.sim.cfg["owners"] if o["kind"] == "flow")
+        day = self.sim.owner_tag(flow, "DAY")["id"]
+        self.sim.sim_seconds = 8 * 3600 - 30      # 30 s before the new contract hour
+        self.sim.live[day] = 5.0
+        self.run_for(60)
+        self.assertLess(self.sim.live[day], 1.0)  # rolled over at 08:00
+
+    def test_dashboard_trends_and_pid_faceplate(self):
+        self.sim.load_example("plunger")
+        pid = next(o for o in self.sim.cfg["owners"] if o["kind"] == "pid")
+        self.sim.action({"op": "changeOwner", "owner": pid["id"], "params": {"dash": True}})
+        self.run_for(400)
+        five = self.sim.action({"op": "trends", "minutes": 5})
+        keys = {s["key"] for s in five["series"]}
+        self.assertIn(f'PID{pid["id"]}', keys)
+        self.assertIn(self.named("TUBING_PRESS")["id"], keys)
+        self.assertEqual(five["bucket"], 1)
+        self.assertEqual(len(five["series"][0]["avg"]), 60)
+        sixty = self.sim.action({"op": "trends", "minutes": 60})
+        self.assertEqual((sixty["bucket"], len(sixty["series"][0]["avg"])), (6, 120))
+        self.assertIn("lo", sixty["series"][0])
+        with self.assertRaises(SimError):
+            self.sim.action({"op": "trends", "minutes": 7})
+
+    def test_pid_action_naming(self):
+        self.sim.load_example("plunger")
+        pid = next(o for o in self.sim.cfg["owners"] if o["kind"] == "pid")
+        self.sim.action({"op": "changeOwner", "owner": pid["id"], "params": {"reverse": True}})
+        self.assertTrue(self.sim.owner(pid["id"])["reverse"])   # shown as Direct: output rises as the PV rises
+
 
 class HttpTests(unittest.TestCase):
     def setUp(self):
